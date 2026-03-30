@@ -1,8 +1,8 @@
 # Changelog
 
-## [0.13.7.0] - 2026-03-29 — Composable Skills
+## [0.13.7.0] - 2026-03-29 — Composable Skills + Community Wave
 
-Skills can now load other skills inline. Write `{{INVOKE_SKILL:office-hours}}` in a template and the generator emits the right "read file, skip preamble, follow instructions" prose automatically. Handles host-aware paths (Claude vs Codex vs Factory) and customizable skip lists.
+Skills can now load other skills inline, and six community fixes landed with 16 new tests.
 
 ### Added
 
@@ -10,11 +10,28 @@ Skills can now load other skills inline. Write `{{INVOKE_SKILL:office-hours}}` i
 - **Parameterized resolver support.** The placeholder regex now handles `{{NAME:arg1:arg2}}`, enabling resolvers that take arguments at generation time. Fully backward compatible with existing `{{NAME}}` patterns.
 - **`{{CHANGELOG_WORKFLOW}}` resolver.** Changelog generation logic extracted from /ship into a reusable resolver. Includes voice guidance ("lead with what the user can now do") inline.
 - **Frontmatter `name:` for skill registration.** Setup script and gen-skill-docs now read `name:` from SKILL.md frontmatter for symlink naming. Enables directory names that differ from invocation names (e.g., `run-tests/` directory registered as `/test`).
+- **Skill discoverability.** Every skill description now contains "(gstack)" so you can find gstack skills by searching in Claude Code's command palette.
+- **Feature signal detection in `/ship`.** Version bump now checks for new routes, migrations, test+source pairs, and `feat/` branches. Catches MINOR-worthy changes that line count alone misses.
+- **Proactive skill routing.** Skills now ask once to add routing rules to your project's CLAUDE.md. This makes Claude invoke the right skill automatically instead of answering directly. Your choice is remembered.
+- **Annotated config file.** `~/.gstack/config.yaml` now gets a documented header on first creation explaining every setting. Edit it anytime.
+- **`bin/gstack-relink`** re-creates skill symlinks when you change `skill_prefix` via `gstack-config set`. No more manual `./setup` re-run needed.
+- **`bin/gstack-open-url`** cross-platform URL opener (macOS: `open`, Linux: `xdg-open`, Windows: `start`).
+- **Sidebar Write tool.** Both the sidebar agent and headed-mode server now include Write in allowedTools.
+- **Sidebar stderr capture.** The sidebar agent now buffers stderr and includes it in error and timeout messages.
 
 ### Changed
 
 - **BENEFITS_FROM now delegates to INVOKE_SKILL.** Eliminated duplicated skip-list logic. The prerequisite offer wrapper stays in BENEFITS_FROM, but the actual "read and follow" instructions come from INVOKE_SKILL.
 - **/plan-ceo-review mid-session fallback uses INVOKE_SKILL.** The "user can't articulate the problem, offer /office-hours" path now uses the composable resolver instead of inline prose.
+- **Stronger routing language.** office-hours, investigate, and ship descriptions now say "Proactively invoke" instead of "Proactively suggest" for more reliable automatic skill invocation.
+
+### Fixed
+
+- **Telemetry off means off everywhere.** When you set telemetry to off, gstack no longer writes local JSONL analytics files. Clean trust contract.
+- **`find -delete` replaced with POSIX `-exec rm`.** Non-GNU environments no longer choke on session cleanup.
+- **No more preemptive context warnings.** `/plan-eng-review` no longer warns about context limits.
+- **`gstack-relink` no longer double-prefixes `gstack-upgrade`.**
+- **Config grep anchored to line start.** Commented header lines no longer shadow real config values.
 
 ## [0.13.6.0] - 2026-03-29 — GStack Learns
 
