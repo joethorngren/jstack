@@ -955,7 +955,10 @@ async function start() {
           uptime: Math.floor((Date.now() - startTime) / 1000),
           tabs: browserManager.getTabCount(),
           currentUrl: browserManager.getCurrentUrl(),
-          // token removed — see .auth.json for extension bootstrap
+          // Auth token for extension bootstrap. Safe: /health is localhost-only.
+          // Previously served via .auth.json in extension dir, but that breaks
+          // read-only .app bundles and codesigning. Extension reads token from here.
+          token: AUTH_TOKEN,
           chatEnabled: true,
           agent: {
             status: agentStatus,

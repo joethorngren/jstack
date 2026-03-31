@@ -34,8 +34,13 @@ function getBaseUrl() {
 
 async function loadAuthToken() {
   if (authToken) return;
+  // Get token from browse server /health endpoint (localhost-only, safe).
+  // Previously read from .auth.json in extension dir, but that breaks
+  // read-only .app bundles and codesigning.
+  const base = getBaseUrl();
+  if (!base) return;
   try {
-    const resp = await fetch(chrome.runtime.getURL('.auth.json'));
+    const resp = await fetch(`${base}/health`, { signal: AbortSignal.timeout(3000) });
     if (resp.ok) {
       const data = await resp.json();
       if (data.token) authToken = data.token;
@@ -88,7 +93,7 @@ function setConnected(healthData) {
 function setDisconnected() {
   const wasConnected = isConnected;
   isConnected = false;
-  // Keep authToken — it comes from .auth.json, not /health
+  // Keep authToken — it persists across reconnections
   chrome.action.setBadgeText({ text: '' });
 
   chrome.runtime.sendMessage({ type: 'health', data: null }).catch(() => {});
