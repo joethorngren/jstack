@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.13.8.0] - 2026-03-29 — Recursive Self-Improvement
+## [0.13.10.0] - 2026-03-29 — Recursive Self-Improvement
 
 gstack now learns from its own mistakes. Every skill session captures operational failures (CLI errors, wrong approaches, project quirks) and surfaces them in future sessions. No setup needed, just works.
 
@@ -17,6 +17,48 @@ gstack now learns from its own mistakes. Every skill session captures operationa
 ### Fixed
 
 - **learnings-show E2E test slug mismatch.** The test seeded learnings at a hardcoded path but gstack-slug computed a different path at runtime. Now computes the slug dynamically.
+
+## [0.13.9.0] - 2026-03-29 — Composable Skills
+
+Skills can now load other skills inline. Write `{{INVOKE_SKILL:office-hours}}` in a template and the generator emits the right "read file, skip preamble, follow instructions" prose automatically. Handles host-aware paths and customizable skip lists.
+
+### Added
+
+- **`{{INVOKE_SKILL:skill-name}}` resolver.** Composable skill loading as a first-class resolver. Emits host-aware prose that tells Claude or Codex to read another skill's SKILL.md and follow it inline, skipping preamble sections. Supports optional `skip=` parameter for additional sections to skip.
+- **Parameterized resolver support.** The placeholder regex now handles `{{NAME:arg1:arg2}}`, enabling resolvers that take arguments at generation time. Fully backward compatible with existing `{{NAME}}` patterns.
+- **`{{CHANGELOG_WORKFLOW}}` resolver.** Changelog generation logic extracted from /ship into a reusable resolver. Includes voice guidance ("lead with what the user can now do") inline.
+- **Frontmatter `name:` for skill registration.** Setup script and gen-skill-docs now read `name:` from SKILL.md frontmatter for symlink naming. Enables directory names that differ from invocation names (e.g., `run-tests/` directory registered as `/test`).
+- **Proactive skill routing.** Skills now ask once to add routing rules to your project's CLAUDE.md. This makes Claude invoke the right skill automatically instead of answering directly. Your choice is remembered in `~/.gstack/config.yaml`.
+- **Annotated config file.** `~/.gstack/config.yaml` now gets a documented header on first creation explaining every setting. Edit it anytime.
+
+### Changed
+
+- **BENEFITS_FROM now delegates to INVOKE_SKILL.** Eliminated duplicated skip-list logic. The prerequisite offer wrapper stays in BENEFITS_FROM, but the actual "read and follow" instructions come from INVOKE_SKILL.
+- **/plan-ceo-review mid-session fallback uses INVOKE_SKILL.** The "user can't articulate the problem, offer /office-hours" path now uses the composable resolver instead of inline prose.
+- **Stronger routing language.** office-hours, investigate, and ship descriptions now say "Proactively invoke" instead of "Proactively suggest" for more reliable automatic skill invocation.
+
+### Fixed
+
+- **Config grep anchored to line start.** Commented header lines no longer shadow real config values.
+
+## [0.13.8.0] - 2026-03-29 — Security Audit Round 2
+
+Browse output is now wrapped in trust boundary markers so agents can tell page content from tool output. Markers are escape-proof. The Chrome extension validates message senders. CDP binds to localhost only. Bun installs use checksum verification.
+
+### Fixed
+
+- **Trust boundary markers are escape-proof.** URLs sanitized (no newlines), marker strings escaped in content. A malicious page can't forge the END marker to break out of the untrusted block.
+
+### Added
+
+- **Content trust boundary markers.** Every browse command that returns page content (`text`, `html`, `links`, `forms`, `accessibility`, `console`, `dialog`, `snapshot`, `diff`, `resume`, `watch stop`) wraps output in `--- BEGIN/END UNTRUSTED EXTERNAL CONTENT ---` markers. Agents know what's page content vs tool output.
+- **Extension sender validation.** Chrome extension rejects messages from unknown senders and enforces a message type allowlist. Prevents cross-extension message spoofing.
+- **CDP localhost-only binding.** `bin/chrome-cdp` now passes `--remote-debugging-address=127.0.0.1` and `--remote-allow-origins` to prevent remote debugging exposure.
+- **Checksum-verified bun install.** The browse SKILL.md bootstrap now downloads the bun install script to a temp file and verifies SHA-256 before executing. No more piping curl to bash.
+
+### Removed
+
+- **Factory Droid support.** Removed `--host factory`, `.factory/` generated skills, Factory CI checks, and all Factory-specific code paths.
 
 ## [0.13.7.0] - 2026-03-29 — Community Wave
 

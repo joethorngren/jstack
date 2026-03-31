@@ -735,45 +735,8 @@ describe('investigate skill structure', () => {
   }
 });
 
-// --- Contributor mode preamble structure validation ---
-
-describe('Contributor mode preamble structure', () => {
-  const skillsWithPreamble = [
-    'SKILL.md', 'browse/SKILL.md', 'qa/SKILL.md',
-    'qa-only/SKILL.md',
-    'setup-browser-cookies/SKILL.md',
-    'ship/SKILL.md', 'review/SKILL.md',
-    'plan-ceo-review/SKILL.md', 'plan-eng-review/SKILL.md',
-    'retro/SKILL.md',
-    'plan-design-review/SKILL.md',
-    'design-review/SKILL.md',
-    'design-consultation/SKILL.md',
-    'document-release/SKILL.md',
-    'canary/SKILL.md',
-    'benchmark/SKILL.md',
-    'land-and-deploy/SKILL.md',
-    'setup-deploy/SKILL.md',
-  ];
-
-  for (const skill of skillsWithPreamble) {
-    test(`${skill} has 0-10 rating in contributor mode`, () => {
-      const content = fs.readFileSync(path.join(ROOT, skill), 'utf-8');
-      expect(content).toContain('0-10');
-      expect(content).toContain('Rating');
-    });
-
-    test(`${skill} has "what would make this a 10" field`, () => {
-      const content = fs.readFileSync(path.join(ROOT, skill), 'utf-8');
-      expect(content).toContain('What would make this a 10');
-    });
-
-    test(`${skill} uses periodic reflection (not per-command)`, () => {
-      const content = fs.readFileSync(path.join(ROOT, skill), 'utf-8');
-      expect(content).toContain('workflow step');
-      expect(content).not.toContain('After you use gstack-provided CLIs');
-    });
-  }
-});
+// Contributor mode was removed in v0.13.10.0 — replaced by operational self-improvement.
+// Tests for contributor mode preamble structure are no longer applicable.
 
 describe('Enum & Value Completeness in review checklist', () => {
   const checklist = fs.readFileSync(path.join(ROOT, 'review', 'checklist.md'), 'utf-8');
@@ -1409,13 +1372,13 @@ describe('Skill trigger phrases', () => {
   ];
 
   for (const skill of SKILLS_REQUIRING_PROACTIVE) {
-    test(`${skill}/SKILL.md has "Proactively suggest" phrase`, () => {
+    test(`${skill}/SKILL.md has proactive routing phrase`, () => {
       const skillPath = path.join(ROOT, skill, 'SKILL.md');
       if (!fs.existsSync(skillPath)) return;
       const content = fs.readFileSync(skillPath, 'utf-8');
       const frontmatterEnd = content.indexOf('---', 4);
       const frontmatter = content.slice(0, frontmatterEnd);
-      expect(frontmatter).toMatch(/Proactively suggest/i);
+      expect(frontmatter).toMatch(/Proactively (suggest|invoke)/i);
     });
   }
 });
