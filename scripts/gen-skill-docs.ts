@@ -277,7 +277,7 @@ function condenseToCursorMdc(content: string, skillName: string, description: st
 
   // Strip preamble sections (large bash blocks for session tracking, version checks, etc.)
   // These are typically between "## Preamble" or "## Step 0" and the next ##
-  body = body.replace(/## (?:Preamble|Step 0)[^\n]*\n[\s\S]*?(?=\n## |\n# )/g, '');
+  body = body.replace(/## (?:Preamble|Step 0)[^\n]*\n[\s\S]*?(?=\n## |\n# |$)/g, '');
 
   // Strip bash code blocks that do setup (find-browse, analytics, learnings search, slug eval, version check, session tracking)
   body = body.replace(/```bash\n(?:[\s\S]*?(?:find-browse|BROWSE=|_VER=|_BRANCH=|_SESSION_ID=|_TEL_START=|_PROACTIVE=|_SKILL_PREFIX=|analytics|skill-usage|learnings-search|jstack-slug|jstack-repo-mode|jstack-learnings|jstack-timeline|jstack-review-log|jstack-config|mkdir -p ~\/\.jstack|\.jstack\/analytics|VERSION:)[\s\S]*?)```\n?/g, '');
@@ -311,6 +311,7 @@ function condenseToCursorMdc(content: string, skillName: string, description: st
   body = body.replace(/use the Agent tool/g, 'dispatch a subagent');
   body = body.replace(/use the Grep tool/g, 'search for');
   body = body.replace(/use the Glob tool/g, 'find files matching');
+  body = body.replace(/use the Edit tool/g, 'edit the file');
 
   // Replace Claude Code skill paths with Cursor-appropriate references
   body = body.replace(/~\/\.claude\/skills\/jstack/g, '.cursor/rules');

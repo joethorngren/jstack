@@ -1978,9 +1978,9 @@ describe('setup script validation', () => {
     expect(fnBody).toContain('ln -snf "jstack/$dir_name"');
   });
 
-  test('setup supports --host auto|claude|codex|kiro', () => {
+  test('setup supports --host auto|claude|codex|kiro|cursor', () => {
     expect(setupContent).toContain('--host');
-    expect(setupContent).toContain('claude|codex|kiro|factory|auto');
+    expect(setupContent).toContain('claude|codex|kiro|factory|cursor|auto');
   });
 
   test('auto mode detects claude, codex, and kiro binaries', () => {

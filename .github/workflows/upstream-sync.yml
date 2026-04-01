@@ -166,8 +166,10 @@ jobs:
             TELEMETRY_STATUS="WARNING -- telemetry code detected, needs cleanup"
           fi
 
-          # Build PR body safely — no heredoc with untrusted content
-          # (upstream commit messages could contain heredoc delimiters)
+          # Build PR body safely — use env vars for untrusted content
+          # (upstream commit messages could contain shell metacharacters)
+          COMMIT_LOG="${{ steps.commits.outputs.log }}"
+          RESOLVE_REPORT="${{ steps.resolve.outputs.report }}"
           {
             echo "## Upstream Sync"
             echo ""
@@ -176,13 +178,13 @@ jobs:
             echo "### Upstream commits"
             echo ""
             echo '```'
-            echo "${{ steps.commits.outputs.log }}" | head -50
+            echo "$COMMIT_LOG" | head -50
             echo '```'
             echo ""
             echo "### Conflict resolution report"
             echo ""
             echo '```'
-            echo "${{ steps.resolve.outputs.report }}" | head -50
+            echo "$RESOLVE_REPORT" | head -50
             echo '```'
             echo ""
             echo "### Telemetry check: ${TELEMETRY_STATUS}"

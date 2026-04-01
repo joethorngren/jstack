@@ -38,7 +38,9 @@ function readState(): ServerState | null {
   try {
     const data = fs.readFileSync(config.stateFile, 'utf-8');
     return JSON.parse(data);
-  } catch {
+  } catch (err: any) {
+    if (err.code === 'ENOENT') return null;
+    console.error(`[mcp] Warning: corrupt state file (${err.message}), restarting daemon`);
     return null;
   }
 }
@@ -114,9 +116,10 @@ async function dispatchCommand(command: string, args: string[], retries = 0): Pr
 
     // Token mismatch — server may have restarted with a new token
     if (resp.status === 401) {
+      if (retries >= 1) throw new Error('Authentication failed after retry');
       const newState = readState();
       if (newState && newState.token !== state.token) {
-        return dispatchCommand(command, args, retries);
+        return dispatchCommand(command, args, retries + 1);
       }
       throw new Error('Authentication failed');
     }

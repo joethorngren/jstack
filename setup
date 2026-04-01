@@ -89,8 +89,8 @@ fi
 
 # --local: install to .claude/skills/ in the current working directory
 if [ "$LOCAL_INSTALL" -eq 1 ]; then
-  if [ "$HOST" = "codex" ]; then
-    echo "Error: --local is only supported for Claude Code (not Codex)." >&2
+  if [ "$HOST" != "claude" ] && [ "$HOST" != "auto" ]; then
+    echo "Error: --local is only supported for Claude Code (not $HOST)." >&2
     exit 1
   fi
   INSTALL_SKILLS_DIR="$(pwd)/.claude/skills"
@@ -706,14 +706,20 @@ if [ "$INSTALL_CURSOR" -eq 1 ]; then
       const fs = require('fs');
       const p = process.env.MCP_JSON_PATH;
       const srv = process.env.MCP_SERVER;
-      const existing = JSON.parse(fs.readFileSync(p, 'utf-8'));
-      if (!existing.mcpServers) existing.mcpServers = {};
-      existing.mcpServers['jstack-browse'] = {
-        command: 'bun',
-        args: ['run', srv]
-      };
-      fs.writeFileSync(p, JSON.stringify(existing, null, 2) + '\n');
-    " 2>/dev/null
+      try {
+        const existing = JSON.parse(fs.readFileSync(p, 'utf-8'));
+        if (!existing.mcpServers) existing.mcpServers = {};
+        existing.mcpServers['jstack-browse'] = {
+          command: 'bun',
+          args: ['run', srv]
+        };
+        fs.writeFileSync(p, JSON.stringify(existing, null, 2) + '\n');
+      } catch (e) {
+        console.error('Warning: could not merge into ' + p + ' (' + e.message + '). Creating fresh.');
+        const fresh = { mcpServers: { 'jstack-browse': { command: 'bun', args: ['run', srv] } } };
+        fs.writeFileSync(p, JSON.stringify(fresh, null, 2) + '\n');
+      }
+    "
     echo "  Updated: $MCP_JSON (merged jstack-browse MCP server)"
   else
     # Create new

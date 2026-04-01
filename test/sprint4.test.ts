@@ -58,8 +58,8 @@ describe('Sprint 4: MCP server', () => {
     ].join('\n') + '\n';
 
     const result = execSync(
-      `echo '${input}' | timeout 10 bun run browse/src/mcp-server.ts 2>/dev/null`,
-      { cwd: ROOT, encoding: 'utf-8', timeout: 15000 }
+      'bun run browse/src/mcp-server.ts 2>/dev/null',
+      { cwd: ROOT, encoding: 'utf-8', timeout: 15000, input }
     );
 
     const lines = result.trim().split('\n').filter(Boolean);
@@ -99,8 +99,8 @@ describe('Sprint 4: MCP server', () => {
     ].join('\n') + '\n';
 
     const result = execSync(
-      `echo '${input}' | timeout 10 bun run browse/src/mcp-server.ts 2>/dev/null`,
-      { cwd: ROOT, encoding: 'utf-8', timeout: 15000 }
+      'bun run browse/src/mcp-server.ts 2>/dev/null',
+      { cwd: ROOT, encoding: 'utf-8', timeout: 15000, input }
     );
 
     const lines = result.trim().split('\n').filter(Boolean);
