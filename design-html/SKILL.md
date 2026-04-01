@@ -10,6 +10,7 @@ description: |
   Use when: "finalize this design", "turn this mockup into HTML", "implement
   this design", or after /design-shotgun approves a direction.
   Proactively suggest when user has approved a design in /design-shotgun. (gstack)
+  Voice triggers (speech-to-text aliases): "build the design", "code the mockup", "make it real".
 allowed-tools:
   - Bash
   - Read
