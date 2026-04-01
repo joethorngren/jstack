@@ -31,18 +31,13 @@ describe('Audit compliance', () => {
     expect(tmpl).toContain('$TEST_PASSWORD');
   });
 
-  // Fix 2: Conditional telemetry — binary calls wrapped with existence check
-  test('preamble telemetry calls are conditional on _TEL and binary existence', () => {
+  // jstack: remote telemetry removed entirely — verify absence
+  test('preamble has no remote telemetry calls', () => {
     const preamble = readFileSync(join(ROOT, 'scripts/resolvers/preamble.ts'), 'utf-8');
-    // Pending finalization must check _TEL and binary existence
-    expect(preamble).toContain('_TEL" != "off"');
-    expect(preamble).toContain('-x ');
-    expect(preamble).toContain('gstack-telemetry-log');
-    // End-of-skill telemetry must also be conditional
-    const completionIdx = preamble.indexOf('Telemetry (run last)');
-    expect(completionIdx).toBeGreaterThan(-1);
-    const completionSection = preamble.slice(completionIdx);
-    expect(completionSection).toContain('_TEL" != "off"');
+    expect(preamble).not.toContain('jstack-telemetry-log');
+    expect(preamble).not.toContain('telemetry-sync');
+    expect(preamble).not.toContain('supabase');
+    expect(preamble).not.toContain('Telemetry (run last)');
   });
 
   // Round 2 Fix 1: W012 — Bun install uses checksum verification
@@ -107,7 +102,7 @@ describe('Audit compliance', () => {
   test('all generated SKILL.md files with telemetry calls use conditional pattern', () => {
     const skills = getAllSkillMds();
     for (const { name, content } of skills) {
-      if (content.includes('gstack-telemetry-log')) {
+      if (content.includes('jstack-telemetry-log')) {
         expect(content).toContain('_TEL" != "off"');
       }
     }

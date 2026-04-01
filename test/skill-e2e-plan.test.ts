@@ -339,7 +339,7 @@ export function main() { return Dashboard(); }
     setupBrowseShims(planDir);
 
     // Create project directory for artifacts
-    projectDir = path.join(os.homedir(), '.gstack', 'projects', 'test-project');
+    projectDir = path.join(os.homedir(), '.jstack', 'projects', 'test-project');
     fs.mkdirSync(projectDir, { recursive: true });
 
     // Clean up stale test-plan files from previous runs
@@ -416,9 +416,9 @@ Write your review to ${planDir}/review-output.md`,
   }, 420_000);
 });
 
-// --- Office Hours Spec Review E2E ---
+// --- Brainstorm Spec Review E2E ---
 
-describeIfSelected('Office Hours Spec Review E2E', ['office-hours-spec-review'], () => {
+describeIfSelected('Brainstorm Spec Review E2E', ['brainstorm-spec-review'], () => {
   let ohDir: string;
 
   beforeAll(() => {
@@ -433,11 +433,11 @@ describeIfSelected('Office Hours Spec Review E2E', ['office-hours-spec-review'],
     run('git', ['add', '.']);
     run('git', ['commit', '-m', 'init']);
 
-    // Copy office-hours skill
-    fs.mkdirSync(path.join(ohDir, 'office-hours'), { recursive: true });
+    // Copy brainstorm skill
+    fs.mkdirSync(path.join(ohDir, 'brainstorm'), { recursive: true });
     fs.copyFileSync(
-      path.join(ROOT, 'office-hours', 'SKILL.md'),
-      path.join(ohDir, 'office-hours', 'SKILL.md'),
+      path.join(ROOT, 'brainstorm', 'SKILL.md'),
+      path.join(ohDir, 'brainstorm', 'SKILL.md'),
     );
   });
 
@@ -445,9 +445,9 @@ describeIfSelected('Office Hours Spec Review E2E', ['office-hours-spec-review'],
     try { fs.rmSync(ohDir, { recursive: true, force: true }); } catch {}
   });
 
-  testConcurrentIfSelected('office-hours-spec-review', async () => {
+  testConcurrentIfSelected('brainstorm-spec-review', async () => {
     const result = await runSkillTest({
-      prompt: `Read office-hours/SKILL.md. I want to understand the spec review loop.
+      prompt: `Read brainstorm/SKILL.md. I want to understand the spec review loop.
 
 Summarize what the "Spec Review Loop" section does — specifically:
 1. How many dimensions does the reviewer check?
@@ -459,12 +459,12 @@ Write your summary to ${ohDir}/spec-review-summary.md`,
       workingDirectory: ohDir,
       maxTurns: 8,
       timeout: 120_000,
-      testName: 'office-hours-spec-review',
+      testName: 'brainstorm-spec-review',
       runId,
     });
 
-    logCost('/office-hours spec review', result);
-    recordE2E(evalCollector, '/office-hours-spec-review', 'Office Hours Spec Review E2E', result);
+    logCost('/brainstorm spec review', result);
+    recordE2E(evalCollector, '/brainstorm-spec-review', 'Brainstorm Spec Review E2E', result);
     expect(result.exitReason).toBe('success');
 
     const summaryPath = path.join(ohDir, 'spec-review-summary.md');
@@ -507,10 +507,10 @@ describeIfSelected('Plan CEO Review Benefits-From E2E', ['plan-ceo-review-benefi
 
   testConcurrentIfSelected('plan-ceo-review-benefits', async () => {
     const result = await runSkillTest({
-      prompt: `Read plan-ceo-review/SKILL.md. Search for sections about "Prerequisite" or "office-hours" or "design doc found".
+      prompt: `Read plan-ceo-review/SKILL.md. Search for sections about "Prerequisite" or "brainstorm" or "design doc found".
 
 Summarize what happens when no design doc is found — specifically:
-1. Is /office-hours offered as a prerequisite?
+1. Is /brainstorm offered as a prerequisite?
 2. What options does the user get?
 3. Is there a mid-session detection for when the user seems lost?
 
@@ -529,14 +529,14 @@ Write your summary to ${benefitsDir}/benefits-summary.md`,
     const summaryPath = path.join(benefitsDir, 'benefits-summary.md');
     if (fs.existsSync(summaryPath)) {
       const summary = fs.readFileSync(summaryPath, 'utf-8').toLowerCase();
-      expect(summary).toMatch(/office.hours/);
+      expect(summary).toMatch(/brainstorm/);
       expect(summary).toMatch(/design doc|no design/i);
     }
   }, 180_000);
 });
 
 // --- Plan Review Report E2E ---
-// Verifies that plan-eng-review writes a "## GSTACK REVIEW REPORT" section
+// Verifies that plan-eng-review writes a "## JSTACK REVIEW REPORT" section
 // to the bottom of the plan file (the living review status footer).
 
 describeIfSelected('Plan Review Report E2E', ['plan-review-report'], () => {
@@ -588,7 +588,7 @@ We're building a real-time notification system for our SaaS app.
     try { fs.rmSync(planDir, { recursive: true, force: true }); } catch {}
   });
 
-  test('/plan-eng-review writes GSTACK REVIEW REPORT to plan file', async () => {
+  test('/plan-eng-review writes JSTACK REVIEW REPORT to plan file', async () => {
     const result = await runSkillTest({
       prompt: `Read plan-eng-review/SKILL.md for the review workflow.
 
@@ -597,7 +597,7 @@ Read plan.md — that's the plan to review. This is a standalone plan document, 
 Proceed directly to the full review. Skip any AskUserQuestion calls — this is non-interactive.
 Skip the preamble bash block, lake intro, telemetry, and contributor mode sections.
 
-CRITICAL REQUIREMENT: plan.md IS the plan file for this review session. After completing your review, you MUST write a "## GSTACK REVIEW REPORT" section to the END of plan.md, exactly as described in the "Plan File Review Report" section of SKILL.md. If gstack-review-read is not available or returns NO_REVIEWS, write the placeholder table with all four review rows (CEO, Codex, Eng, Design). Use the Edit tool to append to plan.md — do NOT overwrite the existing plan content.
+CRITICAL REQUIREMENT: plan.md IS the plan file for this review session. After completing your review, you MUST write a "## JSTACK REVIEW REPORT" section to the END of plan.md, exactly as described in the "Plan File Review Report" section of SKILL.md. If jstack-review-read is not available or returns NO_REVIEWS, write the placeholder table with all four review rows (CEO, Codex, Eng, Design). Use the Edit tool to append to plan.md — do NOT overwrite the existing plan content.
 
 This review report at the bottom of the plan is the MOST IMPORTANT deliverable of this test.`,
       workingDirectory: planDir,
@@ -622,10 +622,10 @@ This review report at the bottom of the plan is the MOST IMPORTANT deliverable o
     expect(planContent).toContain('WebSocket');
 
     // Review report section must exist
-    expect(planContent).toContain('## GSTACK REVIEW REPORT');
+    expect(planContent).toContain('## JSTACK REVIEW REPORT');
 
     // Report should be at the bottom of the file
-    const reportIndex = planContent.lastIndexOf('## GSTACK REVIEW REPORT');
+    const reportIndex = planContent.lastIndexOf('## JSTACK REVIEW REPORT');
     const afterReport = planContent.slice(reportIndex);
 
     // Should contain the review table with standard rows
@@ -640,10 +640,10 @@ This review report at the bottom of the plan is the MOST IMPORTANT deliverable o
 
 // --- Codex Offering E2E ---
 // Verifies that Codex is properly offered (with availability check, user prompt,
-// and fallback) in office-hours, plan-ceo-review, plan-design-review, plan-eng-review.
+// and fallback) in brainstorm, plan-ceo-review, plan-design-review, plan-eng-review.
 
 describeIfSelected('Codex Offering E2E', [
-  'codex-offered-office-hours', 'codex-offered-ceo-review',
+  'codex-offered-brainstorm', 'codex-offered-ceo-review',
   'codex-offered-design-review', 'codex-offered-eng-review',
 ], () => {
   let testDir: string;
@@ -661,7 +661,7 @@ describeIfSelected('Codex Offering E2E', [
     run('git', ['commit', '-m', 'init']);
 
     // Copy all 4 SKILL.md files
-    for (const skill of ['office-hours', 'plan-ceo-review', 'plan-design-review', 'plan-eng-review']) {
+    for (const skill of ['brainstorm', 'plan-ceo-review', 'plan-design-review', 'plan-eng-review']) {
       fs.mkdirSync(path.join(testDir, skill), { recursive: true });
       fs.copyFileSync(
         path.join(ROOT, skill, 'SKILL.md'),
@@ -711,8 +711,8 @@ Write your summary to ${testDir}/${testName}-summary.md`,
     console.log(`${skill}: Codex offering verified`);
   }
 
-  testConcurrentIfSelected('codex-offered-office-hours', async () => {
-    await checkCodexOffering('office-hours', 'codex-offered-office-hours', 'second opinion');
+  testConcurrentIfSelected('codex-offered-brainstorm', async () => {
+    await checkCodexOffering('brainstorm', 'codex-offered-brainstorm', 'second opinion');
   }, 180_000);
 
   testConcurrentIfSelected('codex-offered-ceo-review', async () => {

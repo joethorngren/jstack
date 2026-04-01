@@ -1,16 +1,16 @@
-# gstack — AI Engineering Workflow
+# jstack — AI Engineering Workflow
 
-gstack is a collection of SKILL.md files that give AI agents structured roles for
+jstack is a collection of SKILL.md files that give AI agents structured roles for
 software development. Each skill is a specialist: CEO reviewer, eng manager,
 designer, QA lead, release engineer, debugger, and more.
 
 ## Available skills
 
-Skills live in `.agents/skills/`. Invoke them by name (e.g., `/office-hours`).
+Skills live in `.agents/skills/`. Invoke them by name (e.g., `/brainstorm`).
 
 | Skill | What it does |
 |-------|-------------|
-| `/office-hours` | Start here. Reframes your product idea before you write code. |
+| `/brainstorm` | Start here. Reframes your product idea before you write code. |
 | `/plan-ceo-review` | CEO-level review: find the 10-star product in the request. |
 | `/plan-eng-review` | Lock architecture, data flow, edge cases, and tests. |
 | `/plan-design-review` | Rate each design dimension 0-10, explain what a 10 looks like. |
@@ -29,7 +29,7 @@ Skills live in `.agents/skills/`. Invoke them by name (e.g., `/office-hours`).
 | `/freeze` | Lock edits to one directory. Hard block, not just a warning. |
 | `/guard` | Activate both careful + freeze at once. |
 | `/unfreeze` | Remove directory edit restrictions. |
-| `/gstack-upgrade` | Update gstack to the latest version. |
+| `/jstack-upgrade` | Update jstack to the latest version. |
 
 ## Build commands
 

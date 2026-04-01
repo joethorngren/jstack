@@ -57,7 +57,7 @@ function testIfSelected(testName: string, fn: () => Promise<void>, timeout: numb
   (shouldRun ? test : test.skip)(testName, fn, timeout);
 }
 
-// Eval result collector — accumulates test results, writes to ~/.gstack-dev/evals/ on finalize
+// Eval result collector — accumulates test results, writes to ~/.jstack-dev/evals/ on finalize
 const evalCollector = evalsEnabled ? new EvalCollector('e2e') : null;
 
 // Unique run ID for this E2E session — used for heartbeat + per-run log directory
@@ -148,7 +148,7 @@ function logCost(label: string, result: { costEstimate: { turnsUsed: number; est
  */
 function dumpOutcomeDiagnostic(dir: string, label: string, report: string, judgeResult: any) {
   try {
-    const transcriptDir = path.join(dir, '.gstack', 'test-transcripts');
+    const transcriptDir = path.join(dir, '.jstack', 'test-transcripts');
     fs.mkdirSync(transcriptDir, { recursive: true });
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     fs.writeFileSync(
@@ -260,7 +260,7 @@ Report whether it worked.`,
   }, 90_000);
 
   testIfSelected('skillmd-no-local-binary', async () => {
-    // Create a tmpdir with no browse binary — no local .claude/skills/gstack/browse/dist/browse
+    // Create a tmpdir with no browse binary — no local .claude/skills/jstack/browse/dist/browse
     const emptyDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-e2e-empty-'));
 
     const skillMd = fs.readFileSync(path.join(ROOT, 'SKILL.md'), 'utf-8');
@@ -282,8 +282,8 @@ Report the exact output. Do NOT try to fix or install anything — just report w
     });
 
     // Setup block should either find the global binary (READY) or show NEEDS_SETUP.
-    // On dev machines with gstack installed globally, the fallback path
-    // ~/.claude/skills/gstack/browse/dist/browse exists, so we get READY.
+    // On dev machines with jstack installed globally, the fallback path
+    // ~/.claude/skills/jstack/browse/dist/browse exists, so we get READY.
     // The important thing is it doesn't crash or give a confusing error.
     const allText = result.output || '';
     recordE2E('SKILL.md setup block (no local binary)', 'Skill E2E tests', result);
@@ -350,7 +350,7 @@ Report the exact output — either "READY: <path>" or "NEEDS_SETUP".`,
     const outputPath = path.join(sessionDir, 'question-output.md');
 
     const result = await runSkillTest({
-      prompt: `You are running a gstack skill. The session preamble detected _SESSIONS=4 (the user has 4 gstack windows open).
+      prompt: `You are running a jstack skill. The session preamble detected _SESSIONS=4 (the user has 4 jstack windows open).
 
 ${aqBlock}
 
@@ -1272,7 +1272,7 @@ Write your report to ${qaOnlyDir}/qa-reports/qa-only-report.md`,
       cwd: qaOnlyDir, stdio: 'pipe',
     });
     const statusLines = gitStatus.stdout.toString().trim().split('\n').filter(
-      (l: string) => l.trim() && !l.includes('.prompt-tmp') && !l.includes('.gstack/') && !l.includes('qa-reports/'),
+      (l: string) => l.trim() && !l.includes('.prompt-tmp') && !l.includes('.jstack/') && !l.includes('qa-reports/'),
     );
     expect(statusLines.filter((l: string) => l.startsWith(' M') || l.startsWith('M '))).toHaveLength(0);
   }, 240_000);
@@ -1455,7 +1455,7 @@ export function main() { return Dashboard(); }
     setupBrowseShims(planDir);
 
     // Create project directory for artifacts
-    projectDir = path.join(os.homedir(), '.gstack', 'projects', 'test-project');
+    projectDir = path.join(os.homedir(), '.jstack', 'projects', 'test-project');
     fs.mkdirSync(projectDir, { recursive: true });
   });
 
@@ -1472,7 +1472,7 @@ export function main() { return Dashboard(); }
     } catch {}
   });
 
-  test('/plan-eng-review writes test-plan artifact to ~/.gstack/projects/', async () => {
+  test('/plan-eng-review writes test-plan artifact to ~/.jstack/projects/', async () => {
     // Count existing test-plan files before
     const beforeFiles = fs.readdirSync(projectDir).filter(f => f.includes('test-plan'));
 
@@ -1822,15 +1822,15 @@ describeE2E('Deferred skill E2E', () => {
 
 });
 
-// --- gstack-upgrade E2E ---
+// --- jstack-upgrade E2E ---
 
-describeIfSelected('gstack-upgrade E2E', ['gstack-upgrade-happy-path'], () => {
+describeIfSelected('jstack-upgrade E2E', ['jstack-upgrade-happy-path'], () => {
   let upgradeDir: string;
   let remoteDir: string;
 
   beforeAll(() => {
     upgradeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-e2e-upgrade-'));
-    remoteDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gstack-remote-'));
+    remoteDir = fs.mkdtempSync(path.join(os.tmpdir(), 'jstack-remote-'));
 
     const run = (cmd: string, args: string[], cwd: string) =>
       spawnSync(cmd, args, { cwd, stdio: 'pipe', timeout: 5000 });
@@ -1840,8 +1840,8 @@ describeIfSelected('gstack-upgrade E2E', ['gstack-upgrade-happy-path'], () => {
     run('git', ['config', 'user.email', 'test@test.com'], upgradeDir);
     run('git', ['config', 'user.name', 'Test'], upgradeDir);
 
-    // Create mock gstack install directory (local-git type)
-    const mockGstack = path.join(upgradeDir, '.claude', 'skills', 'gstack');
+    // Create mock jstack install directory (local-git type)
+    const mockGstack = path.join(upgradeDir, '.claude', 'skills', 'jstack');
     fs.mkdirSync(mockGstack, { recursive: true });
 
     // Init as a git repo
@@ -1876,11 +1876,11 @@ describeIfSelected('gstack-upgrade E2E', ['gstack-upgrade-happy-path'], () => {
     // Reset working copy back to old version
     run('git', ['reset', '--hard', 'HEAD~1'], mockGstack);
 
-    // Copy gstack-upgrade skill
-    fs.mkdirSync(path.join(upgradeDir, 'gstack-upgrade'), { recursive: true });
+    // Copy jstack-upgrade skill
+    fs.mkdirSync(path.join(upgradeDir, 'jstack-upgrade'), { recursive: true });
     fs.copyFileSync(
-      path.join(ROOT, 'gstack-upgrade', 'SKILL.md'),
-      path.join(upgradeDir, 'gstack-upgrade', 'SKILL.md'),
+      path.join(ROOT, 'jstack-upgrade', 'SKILL.md'),
+      path.join(upgradeDir, 'jstack-upgrade', 'SKILL.md'),
     );
 
     // Commit so git repo is clean
@@ -1893,12 +1893,12 @@ describeIfSelected('gstack-upgrade E2E', ['gstack-upgrade-happy-path'], () => {
     try { fs.rmSync(remoteDir, { recursive: true, force: true }); } catch {}
   });
 
-  testIfSelected('gstack-upgrade-happy-path', async () => {
-    const mockGstack = path.join(upgradeDir, '.claude', 'skills', 'gstack');
+  testIfSelected('jstack-upgrade-happy-path', async () => {
+    const mockGstack = path.join(upgradeDir, '.claude', 'skills', 'jstack');
     const result = await runSkillTest({
-      prompt: `Read gstack-upgrade/SKILL.md for the upgrade workflow.
+      prompt: `Read jstack-upgrade/SKILL.md for the upgrade workflow.
 
-You are running /gstack-upgrade standalone. The gstack installation is at ./.claude/skills/gstack (local-git type — it has a .git directory with an origin remote).
+You are running /jstack-upgrade standalone. The jstack installation is at ./.claude/skills/jstack (local-git type — it has a .git directory with an origin remote).
 
 Current version: 0.5.0. A new version 0.6.0 is available on origin/main.
 
@@ -1910,15 +1910,15 @@ Follow the standalone upgrade flow:
 
 Skip any AskUserQuestion calls — auto-approve the upgrade. Write a summary of what you did to stdout.
 
-IMPORTANT: The install directory is at ./.claude/skills/gstack — use that exact path.`,
+IMPORTANT: The install directory is at ./.claude/skills/jstack — use that exact path.`,
       workingDirectory: upgradeDir,
       maxTurns: 20,
       timeout: 180_000,
-      testName: 'gstack-upgrade-happy-path',
+      testName: 'jstack-upgrade-happy-path',
       runId,
     });
 
-    logCost('/gstack-upgrade happy path', result);
+    logCost('/jstack-upgrade happy path', result);
 
     // Check that the version was updated
     const versionAfter = fs.readFileSync(path.join(mockGstack, 'VERSION'), 'utf-8').trim();
@@ -1927,7 +1927,7 @@ IMPORTANT: The install directory is at ./.claude/skills/gstack — use that exac
       output.toLowerCase().includes('upgrade') ||
       output.toLowerCase().includes('updated');
 
-    recordE2E('/gstack-upgrade happy path', 'gstack-upgrade E2E', result, {
+    recordE2E('/jstack-upgrade happy path', 'jstack-upgrade E2E', result, {
       passed: versionAfter === '0.6.0' && ['success', 'error_max_turns'].includes(result.exitReason),
     });
 
@@ -3135,9 +3135,9 @@ Write the full output (including the GATE verdict) to ${codexDir}/codex-output.m
   }, 360_000);
 });
 
-// --- Office Hours Spec Review E2E ---
+// --- Brainstorm Spec Review E2E ---
 
-describeIfSelected('Office Hours Spec Review E2E', ['office-hours-spec-review'], () => {
+describeIfSelected('Brainstorm Spec Review E2E', ['brainstorm-spec-review'], () => {
   let ohDir: string;
 
   beforeAll(() => {
@@ -3152,11 +3152,11 @@ describeIfSelected('Office Hours Spec Review E2E', ['office-hours-spec-review'],
     run('git', ['add', '.']);
     run('git', ['commit', '-m', 'init']);
 
-    // Copy office-hours skill
-    fs.mkdirSync(path.join(ohDir, 'office-hours'), { recursive: true });
+    // Copy brainstorm skill
+    fs.mkdirSync(path.join(ohDir, 'brainstorm'), { recursive: true });
     fs.copyFileSync(
-      path.join(ROOT, 'office-hours', 'SKILL.md'),
-      path.join(ohDir, 'office-hours', 'SKILL.md'),
+      path.join(ROOT, 'brainstorm', 'SKILL.md'),
+      path.join(ohDir, 'brainstorm', 'SKILL.md'),
     );
   });
 
@@ -3164,9 +3164,9 @@ describeIfSelected('Office Hours Spec Review E2E', ['office-hours-spec-review'],
     try { fs.rmSync(ohDir, { recursive: true, force: true }); } catch {}
   });
 
-  test('/office-hours SKILL.md contains spec review loop', async () => {
+  test('/brainstorm SKILL.md contains spec review loop', async () => {
     const result = await runSkillTest({
-      prompt: `Read office-hours/SKILL.md. I want to understand the spec review loop.
+      prompt: `Read brainstorm/SKILL.md. I want to understand the spec review loop.
 
 Summarize what the "Spec Review Loop" section does — specifically:
 1. How many dimensions does the reviewer check?
@@ -3178,12 +3178,12 @@ Write your summary to ${ohDir}/spec-review-summary.md`,
       workingDirectory: ohDir,
       maxTurns: 8,
       timeout: 120_000,
-      testName: 'office-hours-spec-review',
+      testName: 'brainstorm-spec-review',
       runId,
     });
 
-    logCost('/office-hours spec review', result);
-    recordE2E('/office-hours-spec-review', 'Office Hours Spec Review E2E', result);
+    logCost('/brainstorm spec review', result);
+    recordE2E('/brainstorm-spec-review', 'Brainstorm Spec Review E2E', result);
     expect(result.exitReason).toBe('success');
 
     const summaryPath = path.join(ohDir, 'spec-review-summary.md');
@@ -3228,10 +3228,10 @@ describeIfSelected('Plan CEO Review Benefits-From E2E', ['plan-ceo-review-benefi
 
   test('/plan-ceo-review SKILL.md contains prerequisite skill offer', async () => {
     const result = await runSkillTest({
-      prompt: `Read plan-ceo-review/SKILL.md. Search for sections about "Prerequisite" or "office-hours" or "design doc found".
+      prompt: `Read plan-ceo-review/SKILL.md. Search for sections about "Prerequisite" or "brainstorm" or "design doc found".
 
 Summarize what happens when no design doc is found — specifically:
-1. Is /office-hours offered as a prerequisite?
+1. Is /brainstorm offered as a prerequisite?
 2. What options does the user get?
 3. Is there a mid-session detection for when the user seems lost?
 
@@ -3251,7 +3251,7 @@ Write your summary to ${benefitsDir}/benefits-summary.md`,
     if (fs.existsSync(summaryPath)) {
       const summary = fs.readFileSync(summaryPath, 'utf-8').toLowerCase();
       // Verify the agent understood the skill chaining
-      expect(summary).toMatch(/office.hours/);
+      expect(summary).toMatch(/brainstorm/);
       expect(summary).toMatch(/design doc|no design/i);
     }
   }, 180_000);

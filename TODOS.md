@@ -8,7 +8,7 @@
 
 **Why:** PR 1 fixes the architecture (command allowlist, XML framing, Opus default). But attackers can still trick Claude into navigating to phishing sites or exfiltrating visible page data via allowed browse commands. The ML classifier catches prompt injection patterns that architectural controls can't see. 94.8% accuracy, 99.6% recall, ~50-100ms inference via WASM. Defense-in-depth.
 
-**Context:** Full design doc with industry research, open source tool landscape, Codex review findings, and ambitious Bun-native vision (5ms inference via FFI + Apple Accelerate): [`docs/designs/ML_PROMPT_INJECTION_KILLER.md`](docs/designs/ML_PROMPT_INJECTION_KILLER.md). CEO plan with scope decisions: `~/.gstack/projects/garrytan-gstack/ceo-plans/2026-03-28-sidebar-prompt-injection-defense.md`.
+**Context:** Full design doc with industry research, open source tool landscape, Codex review findings, and ambitious Bun-native vision (5ms inference via FFI + Apple Accelerate): [`docs/designs/ML_PROMPT_INJECTION_KILLER.md`](docs/designs/ML_PROMPT_INJECTION_KILLER.md). CEO plan with scope decisions: `~/.jstack/projects/garrytan-jstack/ceo-plans/2026-03-28-sidebar-prompt-injection-defense.md`.
 
 **Effort:** L (human: ~2 weeks / CC: ~3-4 hours)
 **Priority:** P0
@@ -36,7 +36,7 @@
 
 **Why:** Right now, headed mode launches a fresh Chromium profile. Users must log in manually or import cookies. Chrome DevTools MCP connects to the user's actual Chrome ... instant access to every authenticated site. This is the future of browser automation for AI agents.
 
-**Context:** Google shipped Chrome DevTools MCP in Chrome 146+ (June 2025). It provides screenshots, console messages, performance traces, Lighthouse audits, and full page interaction through the user's real browser. gstack should use it for real-session access while keeping Playwright for headless CI/testing workflows.
+**Context:** Google shipped Chrome DevTools MCP in Chrome 146+ (June 2025). It provides screenshots, console messages, performance traces, Lighthouse audits, and full page interaction through the user's real browser. jstack should use it for real-session access while keeping Playwright for headless CI/testing workflows.
 
 Potential new skills:
 - `/debug-browser`: JS error tracing with source-mapped stack traces
@@ -98,7 +98,7 @@ May replace `/setup-browser-cookies` for most use cases since the user's real co
 
 ~~**What:** Save/load cookies + localStorage to JSON files for reproducible test sessions.~~
 
-`$B state save/load` ships in v0.12.1.0. V1 saves cookies + URLs only (not localStorage, which breaks on load-before-navigate). Files at `.gstack/browse-states/{name}.json` with 0o600 permissions. Load replaces session (closes all pages first). Name sanitized to `[a-zA-Z0-9_-]`.
+`$B state save/load` ships in v0.12.1.0. V1 saves cookies + URLs only (not localStorage, which breaks on load-before-navigate). Files at `.jstack/browse-states/{name}.json` with 0o600 permissions. Load replaces session (closes all pages first). Name sanitized to `[a-zA-Z0-9_-]`.
 
 **Remaining:** V2 localStorage support (needs pre-navigation injection strategy).
 **Completed:** v0.12.1.0 (2026-03-26)
@@ -177,7 +177,7 @@ May replace `/setup-browser-cookies` for most use cases since the user's real co
 
 ### Headed mode with Chrome extension — SHIPPED
 
-`$B connect` launches Playwright's bundled Chromium in headed mode with the gstack Chrome extension auto-loaded. `$B handoff` now produces the same result (extension + side panel). Sidebar chat gated behind `--chat` flag.
+`$B connect` launches Playwright's bundled Chromium in headed mode with the jstack Chrome extension auto-loaded. `$B handoff` now produces the same result (extension + side panel). Sidebar chat gated behind `--chat` flag.
 
 ### `$B watch` — SHIPPED
 
@@ -213,7 +213,7 @@ Sidebar agent writes structured messages to `.context/sidebar-inbox/`. Workspace
 
 ### Chrome Web Store publishing
 
-**What:** Publish the gstack browse Chrome extension to Chrome Web Store for easier install.
+**What:** Publish the jstack browse Chrome extension to Chrome Web Store for easier install.
 
 **Why:** Currently sideloaded via chrome://extensions. Web Store makes install one-click.
 
@@ -261,7 +261,7 @@ Linux cookie import shipped in v0.11.11.0 (Wave 3). Supports Chrome, Chromium, B
 
 ### Ship log — persistent record of /ship runs
 
-**What:** Append structured JSON entry to `.gstack/ship-log.json` at end of every /ship run (version, date, branch, PR URL, review findings, Greptile stats, todos completed, test results).
+**What:** Append structured JSON entry to `.jstack/ship-log.json` at end of every /ship run (version, date, branch, PR URL, review findings, Greptile stats, todos completed, test results).
 
 **Why:** /retro has no structured data about shipping velocity. Ship log enables: PRs-per-week trending, review finding rates, Greptile signal over time, test suite growth.
 
@@ -282,7 +282,7 @@ Linux cookie import shipped in v0.11.11.0 (Wave 3). Supports Chrome, Chromium, B
 
 **Effort:** M
 **Priority:** P2
-**Depends on:** /setup-gstack-upload
+**Depends on:** /setup-jstack-upload
 
 ## Review
 
@@ -320,7 +320,7 @@ Linux cookie import shipped in v0.11.11.0 (Wave 3). Supports Chrome, Chromium, B
 
 **Effort:** M
 **Priority:** P2
-**Depends on:** /setup-gstack-upload
+**Depends on:** /setup-jstack-upload
 
 ## QA
 
@@ -402,7 +402,7 @@ Linux cookie import shipped in v0.11.11.0 (Wave 3). Supports Chrome, Chromium, B
 
 ## Infrastructure
 
-### /setup-gstack-upload skill (S3 bucket)
+### /setup-jstack-upload skill (S3 bucket)
 
 **What:** Configure S3 bucket for image hosting. One-time setup for visual PR annotations.
 
@@ -411,15 +411,15 @@ Linux cookie import shipped in v0.11.11.0 (Wave 3). Supports Chrome, Chromium, B
 **Effort:** M
 **Priority:** P2
 
-### gstack-upload helper
+### jstack-upload helper
 
-**What:** `browse/bin/gstack-upload` — upload file to S3, return public URL.
+**What:** `browse/bin/jstack-upload` — upload file to S3, return public URL.
 
 **Why:** Shared utility for all skills that need to embed images in PRs.
 
 **Effort:** S
 **Priority:** P2
-**Depends on:** /setup-gstack-upload
+**Depends on:** /setup-jstack-upload
 
 ### WebM to GIF conversion
 
@@ -457,7 +457,7 @@ Shipped: Default model changed to Sonnet for structure tests (~30), Opus retaine
 
 **Why:** Visual charts better for spotting trends than CLI tools.
 
-**Context:** Reads `~/.gstack-dev/evals/*.json`. ~200 lines HTML + chart.js via Bun HTTP server.
+**Context:** Reads `~/.jstack-dev/evals/*.json`. ~200 lines HTML + chart.js via Bun HTTP server.
 
 **Effort:** M
 **Priority:** P3
@@ -477,9 +477,9 @@ Shipped: Default model changed to Sonnet for structure tests (~30), Opus retaine
 
 ### Cross-platform URL open helper
 
-**What:** `gstack-open-url` helper script — detect platform, use `open` (macOS) or `xdg-open` (Linux).
+**What:** `jstack-open-url` helper script — detect platform, use `open` (macOS) or `xdg-open` (Linux).
 
-**Why:** The first-time Completeness Principle intro uses macOS `open` to launch the essay. If gstack ever supports Linux, this silently fails.
+**Why:** The first-time Completeness Principle intro uses macOS `open` to launch the essay. If jstack ever supports Linux, this silently fails.
 
 **Effort:** S (human: ~30 min / CC: ~2 min)
 **Priority:** P4
@@ -497,15 +497,15 @@ Shipped: Default model changed to Sonnet for structure tests (~30), Opus retaine
 **Priority:** P3
 **Depends on:** Ref staleness Parts 1+2 (shipped)
 
-## Office Hours / Design
+## Brainstorm / Design
 
 ### Design docs → Supabase team store sync
 
 **What:** Add design docs (`*-design-*.md`) to the Supabase sync pipeline alongside test plans, retro snapshots, and QA reports.
 
-**Why:** Cross-team design discovery at scale. Local `~/.gstack/projects/$SLUG/` keyword-grep discovery works for same-machine users now, but Supabase sync makes it work across the whole team. Duplicate ideas surface, everyone sees what's been explored.
+**Why:** Cross-team design discovery at scale. Local `~/.jstack/projects/$SLUG/` keyword-grep discovery works for same-machine users now, but Supabase sync makes it work across the whole team. Duplicate ideas surface, everyone sees what's been explored.
 
-**Context:** /office-hours writes design docs to `~/.gstack/projects/$SLUG/`. The team store already syncs test plans, retro snapshots, QA reports. Design docs follow the same pattern — just add a sync adapter.
+**Context:** /brainstorm writes design docs to `~/.jstack/projects/$SLUG/`. The team store already syncs test plans, retro snapshots, QA reports. Design docs follow the same pattern — just add a sync adapter.
 
 **Effort:** S
 **Priority:** P2
@@ -513,13 +513,13 @@ Shipped: Default model changed to Sonnet for structure tests (~30), Opus retaine
 
 ### /yc-prep skill
 
-**What:** Skill that helps founders prepare their YC application after /office-hours identifies strong signal. Pulls from the design doc, structures answers to YC app questions, runs a mock interview.
+**What:** Skill that helps founders prepare their YC application after /brainstorm identifies strong signal. Pulls from the design doc, structures answers to YC app questions, runs a mock interview.
 
-**Why:** Closes the loop. /office-hours identifies the founder, /yc-prep helps them apply well. The design doc already contains most of the raw material for a YC application.
+**Why:** Closes the loop. /brainstorm identifies the founder, /yc-prep helps them apply well. The design doc already contains most of the raw material for a YC application.
 
 **Effort:** M (human: ~2 weeks / CC: ~2 hours)
 **Priority:** P2
-**Depends on:** office-hours founder discovery engine shipping first
+**Depends on:** brainstorm founder discovery engine shipping first
 
 ## Design Review
 
@@ -559,7 +559,7 @@ Shipped in v0.8.3. Step 8.5 added to `/ship` — after creating the PR, `/ship` 
 
 ### `{{DOC_VOICE}}` shared resolver
 
-**What:** Create a placeholder resolver in gen-skill-docs.ts encoding the gstack voice guide (friendly, user-forward, lead with benefits). Inject into /ship Step 5, /document-release Step 5, and reference from CLAUDE.md.
+**What:** Create a placeholder resolver in gen-skill-docs.ts encoding the jstack voice guide (friendly, user-forward, lead with benefits). Inject into /ship Step 5, /document-release Step 5, and reference from CLAUDE.md.
 
 **Why:** DRY — voice rules currently live inline in 3 places (CLAUDE.md CHANGELOG style section, /ship Step 5, /document-release Step 5). When the voice evolves, all three drift.
 
@@ -575,24 +575,24 @@ Shipped in v0.8.3. Step 8.5 added to `/ship` — after creating the PR, `/ship` 
 
 ~~**What:** Auto-detect which of the 4 reviews are relevant based on branch changes (skip Design Review if no CSS/view changes, skip Code Review if plan-only).~~
 
-`bin/gstack-diff-scope` shipped — categorizes diff into SCOPE_FRONTEND, SCOPE_BACKEND, SCOPE_PROMPTS, SCOPE_TESTS, SCOPE_DOCS, SCOPE_CONFIG. Used by design-review-lite to skip when no frontend files changed. Dashboard integration for conditional row display is a follow-up.
+`bin/jstack-diff-scope` shipped — categorizes diff into SCOPE_FRONTEND, SCOPE_BACKEND, SCOPE_PROMPTS, SCOPE_TESTS, SCOPE_DOCS, SCOPE_CONFIG. Used by design-review-lite to skip when no frontend files changed. Dashboard integration for conditional row display is a follow-up.
 
 **Remaining:** Dashboard conditional row display (hide "Design Review: NOT YET RUN" when SCOPE_FRONTEND=false). Extend to Eng Review (skip for docs-only) and CEO Review (skip for config-only).
 
 **Effort:** S
 **Priority:** P3
-**Depends on:** gstack-diff-scope (shipped)
+**Depends on:** jstack-diff-scope (shipped)
 
 
 ## Codex
 
 ### Codex→Claude reverse buddy check skill
 
-**What:** A Codex-native skill (`.agents/skills/gstack-claude/SKILL.md`) that runs `claude -p` to get an independent second opinion from Claude — the reverse of what `/codex` does today from Claude Code.
+**What:** A Codex-native skill (`.agents/skills/jstack-claude/SKILL.md`) that runs `claude -p` to get an independent second opinion from Claude — the reverse of what `/codex` does today from Claude Code.
 
 **Why:** Codex users deserve the same cross-model challenge that Claude users get via `/codex`. Currently the flow is one-way (Claude→Codex). Codex users have no way to get a Claude second opinion.
 
-**Context:** The `/codex` skill template (`codex/SKILL.md.tmpl`) shows the pattern — it wraps `codex exec` with JSONL parsing, timeout handling, and structured output. The reverse skill would wrap `claude -p` with similar infrastructure. Would be generated into `.agents/skills/gstack-claude/` by `gen-skill-docs --host codex`.
+**Context:** The `/codex` skill template (`codex/SKILL.md.tmpl`) shows the pattern — it wraps `codex exec` with JSONL parsing, timeout handling, and structured output. The reverse skill would wrap `claude -p` with similar infrastructure. Would be generated into `.agents/skills/jstack-claude/` by `gen-skill-docs --host codex`.
 
 **Effort:** M (human: ~2 weeks / CC: ~30 min)
 **Priority:** P1
@@ -602,7 +602,7 @@ Shipped in v0.8.3. Step 8.5 added to `/ship` — after creating the PR, `/ship` 
 
 ### Completeness metrics dashboard
 
-**What:** Track how often Claude chooses the complete option vs shortcut across gstack sessions. Aggregate into a dashboard showing completeness trend over time.
+**What:** Track how often Claude chooses the complete option vs shortcut across jstack sessions. Aggregate into a dashboard showing completeness trend over time.
 
 **Why:** Without measurement, we can't know if the Completeness Principle is working. Could surface patterns (e.g., certain skills still bias toward shortcuts).
 
@@ -639,7 +639,7 @@ Shipped in v0.6.5. TemplateContext in gen-skill-docs.ts bakes skill name into pr
 2. Freeze boundary widening (ask to widen instead of hard-block when hitting boundary)
 3. Post-fix auto-unfreeze + full test suite run
 4. Debug instrumentation cleanup (tag with DEBUG-TEMP, remove before commit)
-5. Debug session persistence (~/.gstack/investigate-sessions/ — save investigation for reuse)
+5. Debug session persistence (~/.jstack/investigate-sessions/ — save investigation for reuse)
 6. Investigation timeline in debug report (hypothesis log with timing)
 
 **Effort:** M (all 6 combined)
@@ -650,11 +650,11 @@ Shipped in v0.6.5. TemplateContext in gen-skill-docs.ts bakes skill name into pr
 
 ### Context recovery preamble
 
-**What:** Add ~10 lines of prose to the preamble telling the agent to re-read gstack artifacts (CEO plans, design reviews, eng reviews, checkpoints) after compaction or context degradation.
+**What:** Add ~10 lines of prose to the preamble telling the agent to re-read jstack artifacts (CEO plans, design reviews, eng reviews, checkpoints) after compaction or context degradation.
 
-**Why:** gstack skills produce valuable artifacts stored at `~/.gstack/projects/$SLUG/`. When Claude's auto-compaction fires, it preserves a generic summary but doesn't know these artifacts exist. The plans and reviews that shaped the current work silently vanish from context, even though they're still on disk. This is the thing nobody else in the Claude Code ecosystem is solving, because nobody else has gstack's artifact architecture.
+**Why:** jstack skills produce valuable artifacts stored at `~/.jstack/projects/$SLUG/`. When Claude's auto-compaction fires, it preserves a generic summary but doesn't know these artifacts exist. The plans and reviews that shaped the current work silently vanish from context, even though they're still on disk. This is the thing nobody else in the Claude Code ecosystem is solving, because nobody else has jstack's artifact architecture.
 
-**Context:** Inspired by Anthropic's `claude-progress.txt` pattern for long-running agents. Also informed by claude-mem's "progressive disclosure" approach. See `docs/designs/SESSION_INTELLIGENCE.md` for the broader vision. CEO plan: `~/.gstack/projects/garrytan-gstack/ceo-plans/2026-03-31-session-intelligence-layer.md`.
+**Context:** Inspired by Anthropic's `claude-progress.txt` pattern for long-running agents. Also informed by claude-mem's "progressive disclosure" approach. See `docs/designs/SESSION_INTELLIGENCE.md` for the broader vision. CEO plan: `~/.jstack/projects/garrytan-jstack/ceo-plans/2026-03-31-session-intelligence-layer.md`.
 
 **Effort:** S (human: ~30 min / CC: ~5 min)
 **Priority:** P1
@@ -663,7 +663,7 @@ Shipped in v0.6.5. TemplateContext in gen-skill-docs.ts bakes skill name into pr
 
 ### Session timeline
 
-**What:** Append one-line JSONL entry to `~/.gstack/projects/$SLUG/timeline.jsonl` after every skill run (timestamp, skill, branch, outcome). `/retro` renders the timeline.
+**What:** Append one-line JSONL entry to `~/.jstack/projects/$SLUG/timeline.jsonl` after every skill run (timestamp, skill, branch, outcome). `/retro` renders the timeline.
 
 **Why:** Makes AI-assisted work history visible. `/retro` can show "this week: 3 /review, 2 /ship, 1 /investigate." Provides the observability layer for the session intelligence architecture.
 
@@ -674,7 +674,7 @@ Shipped in v0.6.5. TemplateContext in gen-skill-docs.ts bakes skill name into pr
 
 ### Cross-session context injection
 
-**What:** When a new gstack session starts on a branch with recent checkpoints or plans, the preamble prints a one-line summary: "Last session: implemented JWT auth, 3/5 tasks done." Agent knows where you left off before reading any files.
+**What:** When a new jstack session starts on a branch with recent checkpoints or plans, the preamble prints a one-line summary: "Last session: implemented JWT auth, 3/5 tasks done." Agent knows where you left off before reading any files.
 
 **Why:** Claude starts every session fresh. This one-liner orients the agent immediately. Similar to claude-mem's SessionStart hook pattern but simpler and integrated.
 
@@ -684,7 +684,7 @@ Shipped in v0.6.5. TemplateContext in gen-skill-docs.ts bakes skill name into pr
 
 ### /checkpoint skill
 
-**What:** Manual skill to snapshot current working state: what's being done and why, files being edited, decisions made (and rationale), what's done vs. remaining, critical types/signatures. Saved to `~/.gstack/projects/$SLUG/checkpoints/<timestamp>.md`.
+**What:** Manual skill to snapshot current working state: what's being done and why, files being edited, decisions made (and rationale), what's done vs. remaining, critical types/signatures. Saved to `~/.jstack/projects/$SLUG/checkpoints/<timestamp>.md`.
 
 **Why:** Useful before stepping away from a long session, before known-complex operations that might trigger compaction, for handing off context to a different agent/workspace, or coming back to a project after days away.
 
@@ -695,7 +695,7 @@ Shipped in v0.6.5. TemplateContext in gen-skill-docs.ts bakes skill name into pr
 
 ### Session Intelligence Layer design doc
 
-**What:** Write `docs/designs/SESSION_INTELLIGENCE.md` describing the architectural vision: gstack as the persistent brain that survives Claude's ephemeral context. Every skill writes to `~/.gstack/projects/$SLUG/`, preamble re-reads, `/retro` rolls up.
+**What:** Write `docs/designs/SESSION_INTELLIGENCE.md` describing the architectural vision: jstack as the persistent brain that survives Claude's ephemeral context. Every skill writes to `~/.jstack/projects/$SLUG/`, preamble re-reads, `/retro` rolls up.
 
 **Why:** Connects context recovery, health, checkpoint, and timeline features into a coherent architecture. Nobody else in the ecosystem is building this.
 
@@ -707,7 +707,7 @@ Shipped in v0.6.5. TemplateContext in gen-skill-docs.ts bakes skill name into pr
 
 ### /health — Project Health Dashboard
 
-**What:** Skill that runs type-check, lint, test suite, and dead code scan, then reports a composite 0-10 health score with breakdown by category. Tracks over time in `~/.gstack/health/<project-slug>/` for trend detection. Optionally integrates CodeScene MCP for deeper complexity/cohesion/coupling analysis.
+**What:** Skill that runs type-check, lint, test suite, and dead code scan, then reports a composite 0-10 health score with breakdown by category. Tracks over time in `~/.jstack/health/<project-slug>/` for trend detection. Optionally integrates CodeScene MCP for deeper complexity/cohesion/coupling analysis.
 
 **Why:** No quick way to get "state of the codebase" before starting work. CodeScene peer-reviewed research shows AI-generated code increases static analysis warnings by 30%, code complexity by 41%, and change failure rates by 30%. Users need guardrails. Like `/qa` but for code quality rather than browser behavior.
 
@@ -760,9 +760,9 @@ Shipped in v0.6.5. TemplateContext in gen-skill-docs.ts bakes skill name into pr
 
 ### Browse MCP server for Factory Droid
 
-**What:** Expose gstack's browse binary and key workflows as an MCP server that Factory Droid connects to natively. Factory users would run /mcp, add the gstack server, and get browse, QA, and review capabilities as Factory tools.
+**What:** Expose jstack's browse binary and key workflows as an MCP server that Factory Droid connects to natively. Factory users would run /mcp, add the jstack server, and get browse, QA, and review capabilities as Factory tools.
 
-**Why:** Factory already supports 40+ MCP servers in its registry. Getting gstack's browse binary listed there is a distribution play. Nobody else has a real compiled browser binary as an MCP tool. This is the thing that makes gstack uniquely valuable on Factory Droid.
+**Why:** Factory already supports 40+ MCP servers in its registry. Getting jstack's browse binary listed there is a distribution play. Nobody else has a real compiled browser binary as an MCP tool. This is the thing that makes jstack uniquely valuable on Factory Droid.
 
 **Context:** Option A (--host factory compatibility shim) ships first in v0.13.4.0. Option B is the follow-up that provides deeper integration. The browse binary is already a stateless CLI, so wrapping it as an MCP server is straightforward (stdin/stdout JSON-RPC). Each browse command becomes an MCP tool.
 
@@ -782,13 +782,35 @@ Shipped in v0.6.5. TemplateContext in gen-skill-docs.ts bakes skill name into pr
 
 ### Custom Droid definitions alongside skills
 
-**What:** Factory has "custom droids" (subagents with tool restrictions, model selection, autonomy levels). Could ship `gstack-qa.md` droid configs alongside skills that restrict tools to read-only + execute for safety.
+**What:** Factory has "custom droids" (subagents with tool restrictions, model selection, autonomy levels). Could ship `jstack-qa.md` droid configs alongside skills that restrict tools to read-only + execute for safety.
 
-**Why:** Deeper Factory integration. Droid configs give Factory users tighter control over what gstack skills can do.
+**Why:** Deeper Factory integration. Droid configs give Factory users tighter control over what jstack skills can do.
 
 **Effort:** M
 **Priority:** P3
 **Depends on:** --host factory
+
+## Someday / Maybe
+
+### Convex sync layer for learnings + prompt collection
+
+**What:** Add an optional Convex backend that syncs the local learnings system (JSONL) to a cloud database. Enables cross-machine sync, collaborator sharing ("running mate" pattern), and aggregation across projects. Long-term: prompt/usage data could inform model fine-tuning (similar to how Cursor uses interaction data).
+
+**Why:** The learnings system is powerful but local-only. When working across machines or with a collaborator, there's no way to share operational context. Convex is real-time, good DX, and reactive queries make it natural for this use case.
+
+**Architecture:** This belongs in company-specific forks (e.g., `arity-stack`), NOT in jstack core. jstack's brand is "zero telemetry, nothing leaves your machine." Adding a cloud database — even opt-in — muddies that message. The `jstack init --company` fork template is the right place: company forks can add whatever infrastructure they want.
+
+**Scope:**
+- Convex schema for learnings (skill, type, key, insight, confidence, source)
+- Optional sync adapter in jstack-learnings-log / jstack-learnings-search
+- Prompt collection (opt-in, company fork only) for future fine-tuning data
+- Privacy: never in jstack core, never default-on, always company-fork scoped
+
+**Effort:** M
+**Priority:** P3 (someday/maybe)
+**Depends on:** `jstack init --company` (Sprint 3), Convex account setup
+
+---
 
 ## Completed
 
@@ -812,7 +834,7 @@ Shipped in v0.6.5. TemplateContext in gen-skill-docs.ts bakes skill name into pr
 **Completed:** v0.9.8.0
 
 ### Phase 1: Foundations (v0.2.0)
-- Rename to gstack
+- Rename to jstack
 - Restructure to monorepo layout
 - Setup script for skill symlinks
 - Snapshot command with ref-based element selection
@@ -845,5 +867,5 @@ Shipped in v0.6.5. TemplateContext in gen-skill-docs.ts bakes skill name into pr
 **Completed:** v0.3.6
 
 ### Auto-upgrade mode + smart update check
-- Config CLI (`bin/gstack-config`), auto-upgrade via `~/.gstack/config.yaml`, 12h cache TTL, exponential snooze backoff (24h→48h→1wk), "never ask again" option, vendored copy sync on upgrade
+- Config CLI (`bin/jstack-config`), auto-upgrade via `~/.jstack/config.yaml`, 12h cache TTL, exponential snooze backoff (24h→48h→1wk), "never ask again" option, vendored copy sync on upgrade
 **Completed:** v0.3.8

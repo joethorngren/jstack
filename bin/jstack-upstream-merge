@@ -1,0 +1,298 @@
+#!/usr/bin/env bash
+# jstack-upstream-merge — smart conflict resolution for upstream gstack merges
+#
+# Resolves merge conflicts by category:
+#   1. Deleted files (telemetry/supabase) — keep our deletion
+#   2. Renamed files (gstack-* → jstack-*) — accept upstream + re-rename
+#   3. Content conflicts (gstack strings vs jstack) — accept upstream + re-apply renames
+#
+# Usage:
+#   bin/jstack-upstream-merge
+#
+# Exit codes:
+#   0 — all conflicts resolved
+#   1 — some files need human review (partial resolution done)
+set -uo pipefail
+
+# ─── Counters ───────────────────────────────────────────────────────
+
+DELETED_COUNT=0
+RENAMED_COUNT=0
+CONTENT_COUNT=0
+HUMAN_REVIEW_COUNT=0
+HUMAN_REVIEW_FILES=()
+HUMAN_REVIEW_REASONS=()
+
+# ─── Helpers ────────────────────────────────────────────────────────
+
+# Portable in-place sed (BSD vs GNU)
+sedi() {
+  if sed --version >/dev/null 2>&1; then
+    sed -i "$@"
+  else
+    sed -i '' "$@"
+  fi
+}
+
+is_binary_file() {
+  local f="$1"
+  if [[ ! -f "$f" ]]; then
+    return 1
+  fi
+  if file "$f" | grep -q 'executable\|binary\|Mach-O'; then
+    return 0
+  fi
+  return 1
+}
+
+# Check if a file matches the "deleted by us" pattern (telemetry/supabase)
+is_deleted_file() {
+  local f="$1"
+  case "$f" in
+    supabase/*)                          return 0 ;;
+    bin/gstack-telemetry-*)              return 0 ;;
+    bin/gstack-analytics)                return 0 ;;
+    bin/gstack-community-dashboard)      return 0 ;;
+    test/telemetry.test.ts)              return 0 ;;
+    *)                                   return 1 ;;
+  esac
+}
+
+# Check if a file is a renamed bin script (gstack-* that we renamed to jstack-*)
+is_renamed_bin() {
+  local f="$1"
+  case "$f" in
+    bin/gstack-*)
+      # Exclude files we deleted entirely
+      if is_deleted_file "$f"; then
+        return 1
+      fi
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+# Apply gstack → jstack renames to a file's contents
+# Uses the same sed patterns from jstack-init (lines 200-280)
+apply_renames() {
+  local f="$1"
+
+  # Skip binary files
+  if is_binary_file "$f"; then
+    return 1
+  fi
+
+  # Order matters: longer/more-specific patterns first to avoid partial matches
+
+  # GitHub repo reference
+  sedi \
+    -e 's|garrytan/gstack|joethorngren/jstack|g' \
+    "$f" 2>/dev/null || return 1
+
+  # Environment variable names (uppercase)
+  sedi \
+    -e 's|GSTACK_STATE_DIR|JSTACK_STATE_DIR|g' \
+    -e 's|GSTACK_ROOT|JSTACK_ROOT|g' \
+    -e 's|GSTACK_BIN|JSTACK_BIN|g' \
+    -e 's|GSTACK_BROWSE|JSTACK_BROWSE|g' \
+    -e 's|GSTACK_DESIGN|JSTACK_DESIGN|g' \
+    -e 's|GSTACK_SETUP_RUNNING|JSTACK_SETUP_RUNNING|g' \
+    -e 's|GSTACK_RELINK|JSTACK_RELINK|g' \
+    "$f" 2>/dev/null || return 1
+
+  # Config directory
+  sedi \
+    -e 's|~/\.gstack|~/.jstack|g' \
+    -e 's|\$HOME/\.gstack|$HOME/.jstack|g' \
+    "$f" 2>/dev/null || return 1
+
+  # Binary/script names: gstack-* → jstack-*
+  sedi \
+    -e 's|gstack-config|jstack-config|g' \
+    -e 's|gstack-relink|jstack-relink|g' \
+    -e 's|gstack-patch-names|jstack-patch-names|g' \
+    -e 's|gstack-slug|jstack-slug|g' \
+    -e 's|gstack-repo-mode|jstack-repo-mode|g' \
+    -e 's|gstack-diff-scope|jstack-diff-scope|g' \
+    -e 's|gstack-global-discover|jstack-global-discover|g' \
+    -e 's|gstack-extension|jstack-extension|g' \
+    -e 's|gstack-learnings-log|jstack-learnings-log|g' \
+    -e 's|gstack-learnings-search|jstack-learnings-search|g' \
+    -e 's|gstack-open-url|jstack-open-url|g' \
+    -e 's|gstack-platform-detect|jstack-platform-detect|g' \
+    -e 's|gstack-review-log|jstack-review-log|g' \
+    -e 's|gstack-review-read|jstack-review-read|g' \
+    -e 's|gstack-timeline-log|jstack-timeline-log|g' \
+    -e 's|gstack-timeline-read|jstack-timeline-read|g' \
+    -e 's|gstack-uninstall|jstack-uninstall|g' \
+    -e 's|gstack-update-check|jstack-update-check|g' \
+    -e 's|gstack-init|jstack-init|g' \
+    "$f" 2>/dev/null || return 1
+
+  # Skill directory rename
+  sedi \
+    -e 's|office-hours/|brainstorm/|g' \
+    -e 's|/office-hours|/brainstorm|g' \
+    "$f" 2>/dev/null || return 1
+
+  # Remaining product name references (case-sensitive, broadest patterns last)
+  sedi \
+    -e 's|GSTACK|JSTACK|g' \
+    "$f" 2>/dev/null || return 1
+
+  sedi \
+    -e 's|gstack|jstack|g' \
+    "$f" 2>/dev/null || return 1
+
+  return 0
+}
+
+# Check if a file still has conflict markers
+has_conflict_markers() {
+  local f="$1"
+  if grep -q '^<<<<<<< ' "$f" 2>/dev/null; then
+    return 0
+  fi
+  return 1
+}
+
+add_human_review() {
+  local file="$1"
+  local reason="$2"
+  HUMAN_REVIEW_COUNT=$((HUMAN_REVIEW_COUNT + 1))
+  HUMAN_REVIEW_FILES+=("$file")
+  HUMAN_REVIEW_REASONS+=("$reason")
+}
+
+# ─── Main ───────────────────────────────────────────────────────────
+
+# Get list of conflicting files
+CONFLICTING=$(git diff --name-only --diff-filter=U 2>/dev/null || true)
+
+if [[ -z "$CONFLICTING" ]]; then
+  echo "UPSTREAM MERGE RESOLUTION REPORT"
+  echo "================================"
+  echo "Clean merge — no conflicts"
+  echo ""
+  echo "Telemetry check: CLEAN"
+  exit 0
+fi
+
+# Process each conflicting file
+while IFS= read -r file; do
+  [[ -z "$file" ]] && continue
+
+  # ── Category A: Deleted files (telemetry/supabase) ──
+  if is_deleted_file "$file"; then
+    # Keep our deletion — reject upstream's version
+    git checkout --ours -- "$file" 2>/dev/null || git rm -f "$file" 2>/dev/null || true
+    # If the file still exists after checkout --ours and we deleted it, remove it
+    if [[ -f "$file" ]]; then
+      git rm -f "$file" 2>/dev/null || true
+    fi
+    git add "$file" 2>/dev/null || true
+    DELETED_COUNT=$((DELETED_COUNT + 1))
+    continue
+  fi
+
+  # ── Category B: Renamed bin scripts (gstack-* → jstack-*) ──
+  if is_renamed_bin "$file"; then
+    # Accept upstream's changes (get their content)
+    git checkout --theirs -- "$file" 2>/dev/null
+    if [[ $? -ne 0 ]]; then
+      add_human_review "$file" "could not checkout --theirs"
+      continue
+    fi
+
+    # Re-apply gstack → jstack renames
+    if apply_renames "$file"; then
+      # Determine the jstack-named equivalent
+      jstack_name=$(echo "$file" | sed 's|bin/gstack-|bin/jstack-|')
+      if [[ "$file" != "$jstack_name" ]]; then
+        # Move the file to jstack name if it isn't already there
+        if [[ -f "$jstack_name" ]]; then
+          # Target already exists — copy content over
+          cp "$file" "$jstack_name"
+          git rm -f "$file" 2>/dev/null || true
+          git add "$jstack_name"
+        else
+          git mv "$file" "$jstack_name" 2>/dev/null || mv "$file" "$jstack_name"
+          git add "$jstack_name"
+        fi
+      else
+        git add "$file"
+      fi
+      RENAMED_COUNT=$((RENAMED_COUNT + 1))
+    else
+      add_human_review "$file" "sed rename failed"
+    fi
+    continue
+  fi
+
+  # ── Category C: Content conflicts (gstack string vs jstack string) ──
+
+  # Accept upstream's version
+  git checkout --theirs -- "$file" 2>/dev/null
+  if [[ $? -ne 0 ]]; then
+    add_human_review "$file" "could not checkout --theirs"
+    continue
+  fi
+
+  # Skip binary files
+  if is_binary_file "$file"; then
+    git add "$file"
+    CONTENT_COUNT=$((CONTENT_COUNT + 1))
+    continue
+  fi
+
+  # Apply renames
+  if apply_renames "$file"; then
+    # Verify no conflict markers remain (shouldn't happen after --theirs, but be safe)
+    if has_conflict_markers "$file"; then
+      add_human_review "$file" "conflict markers remain after rename"
+    else
+      git add "$file"
+      CONTENT_COUNT=$((CONTENT_COUNT + 1))
+    fi
+  else
+    add_human_review "$file" "sed rename failed or produced invalid output"
+  fi
+
+done <<< "$CONFLICTING"
+
+# ─── Telemetry check ───────────────────────────────────────────────
+
+TELEMETRY_STATUS="CLEAN"
+# Check all tracked files for telemetry patterns
+if git diff --cached --name-only | xargs grep -l 'supabase\|telemetry-sync\|telemetry-log\|installation-id' 2>/dev/null | head -5 | grep -q .; then
+  TELEMETRY_STATUS="WARNING — telemetry code detected in staged files"
+fi
+
+# ─── Report ─────────────────────────────────────────────────────────
+
+echo ""
+echo "UPSTREAM MERGE RESOLUTION REPORT"
+echo "================================"
+echo "Auto-resolved (deleted/rejected):  ${DELETED_COUNT} files"
+echo "Auto-resolved (renamed):           ${RENAMED_COUNT} files"
+echo "Auto-resolved (content):           ${CONTENT_COUNT} files"
+echo "NEEDS HUMAN REVIEW:                ${HUMAN_REVIEW_COUNT} files"
+
+if [[ ${HUMAN_REVIEW_COUNT} -gt 0 ]]; then
+  for i in "${!HUMAN_REVIEW_FILES[@]}"; do
+    echo "  - ${HUMAN_REVIEW_FILES[$i]} (${HUMAN_REVIEW_REASONS[$i]})"
+  done
+fi
+
+echo ""
+echo "Telemetry check: ${TELEMETRY_STATUS}"
+
+# Exit code
+if [[ ${HUMAN_REVIEW_COUNT} -gt 0 ]]; then
+  exit 1
+else
+  exit 0
+fi

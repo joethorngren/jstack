@@ -91,6 +91,16 @@ export function generateSnapshotFlags(_ctx: TemplateContext): string {
 }
 
 export function generateBrowseSetup(ctx: TemplateContext): string {
+  if (ctx.host === 'cursor') {
+    return `## Browse Setup
+
+Browse tools are available via the **jstack-browse** MCP server configured in \`.cursor/mcp.json\`.
+
+Available MCP tools: \`browse_goto\`, \`browse_click\`, \`browse_type\`, \`browse_fill\`, \`browse_screenshot\`, \`browse_snapshot\`, \`browse_assert\`, \`browse_wait\`, \`browse_scroll\`, \`browse_press\`.
+
+Use \`browse_snapshot\` (with flags \`["-i"]\` for interactive elements) to understand page state. Element references like \`@e3\` from snapshot output can be used as selectors in other tools.`;
+  }
+
   return `## SETUP (run this check BEFORE any browse command)
 
 \`\`\`bash

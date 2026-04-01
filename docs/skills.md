@@ -1,10 +1,10 @@
 # Skill Deep Dives
 
-Detailed guides for every gstack skill — philosophy, workflow, and examples.
+Detailed guides for every jstack skill — philosophy, workflow, and examples.
 
 | Skill | Your specialist | What they do |
 |-------|----------------|--------------|
-| [`/office-hours`](#office-hours) | **YC Office Hours** | Start here. Six forcing questions that reframe your product before you write code. Pushes back on your framing, challenges premises, generates implementation alternatives. Design doc feeds into every downstream skill. |
+| [`/brainstorm`](#brainstorm) | **YC Brainstorm** | Start here. Six forcing questions that reframe your product before you write code. Pushes back on your framing, challenges premises, generates implementation alternatives. Design doc feeds into every downstream skill. |
 | [`/plan-ceo-review`](#plan-ceo-review) | **CEO / Founder** | Rethink the problem. Find the 10-star product hiding inside the request. Four modes: Expansion, Selective Expansion, Hold Scope, Reduction. |
 | [`/plan-eng-review`](#plan-eng-review) | **Eng Manager** | Lock in architecture, data flow, diagrams, edge cases, and tests. Forces hidden assumptions into the open. |
 | [`/plan-design-review`](#plan-design-review) | **Senior Designer** | Interactive plan-mode design review. Rates each dimension 0-10, explains what a 10 looks like, fixes the plan. Works in plan mode. |
@@ -26,7 +26,7 @@ Detailed guides for every gstack skill — philosophy, workflow, and examples.
 | [`/browse`](#browse) | **QA Engineer** | Give the agent eyes. Real Chromium browser, real clicks, real screenshots. ~100ms per command. |
 | [`/setup-browser-cookies`](#setup-browser-cookies) | **Session Manager** | Import cookies from your real browser (Chrome, Arc, Brave, Edge) into the headless session. Test authenticated pages. |
 | [`/autoplan`](#autoplan) | **Review Pipeline** | One command, fully reviewed plan. Runs CEO → design → eng review automatically with encoded decision principles. Surfaces only taste decisions for your approval. |
-| [`/learn`](#learn) | **Memory** | Manage what gstack learned across sessions. Review, search, prune, and export project-specific patterns and preferences. |
+| [`/learn`](#learn) | **Memory** | Manage what jstack learned across sessions. Review, search, prune, and export project-specific patterns and preferences. |
 | | | |
 | **Multi-AI** | | |
 | [`/codex`](#codex) | **Second Opinion** | Independent review from OpenAI Codex CLI. Three modes: code review (pass/fail gate), adversarial challenge, and open consultation with session continuity. Cross-model analysis when both `/review` and `/codex` have run. |
@@ -36,13 +36,13 @@ Detailed guides for every gstack skill — philosophy, workflow, and examples.
 | [`/freeze`](#safety--guardrails) | **Edit Lock** | Restrict all file edits to a single directory. Blocks Edit and Write outside the boundary. Accident prevention for debugging. |
 | [`/guard`](#safety--guardrails) | **Full Safety** | Combines /careful + /freeze in one command. Maximum safety for prod work. |
 | [`/unfreeze`](#safety--guardrails) | **Unlock** | Remove the /freeze boundary, allowing edits everywhere again. |
-| [`/connect-chrome`](#connect-chrome) | **Chrome Controller** | Launch your real Chrome controlled by gstack with the Side Panel extension. Watch every action live. |
+| [`/connect-chrome`](#connect-chrome) | **Chrome Controller** | Launch your real Chrome controlled by jstack with the Side Panel extension. Watch every action live. |
 | [`/setup-deploy`](#setup-deploy) | **Deploy Configurator** | One-time setup for `/land-and-deploy`. Detects your platform, production URL, and deploy commands. |
-| [`/gstack-upgrade`](#gstack-upgrade) | **Self-Updater** | Upgrade gstack to the latest version. Detects global vs vendored install, syncs both, shows what changed. |
+| [`/jstack-upgrade`](#jstack-upgrade) | **Self-Updater** | Upgrade jstack to the latest version. Detects global vs vendored install, syncs both, shows what changed. |
 
 ---
 
-## `/office-hours`
+## `/brainstorm`
 
 This is where every project should start.
 
@@ -87,15 +87,15 @@ Recommends A because you learn from real usage. CRM data comes naturally in week
 
 ### Two modes
 
-**Startup mode** — for founders and intrapreneurs building a business. You get six forcing questions distilled from how YC partners evaluate products: demand reality, status quo, desperate specificity, narrowest wedge, observation & surprise, and future-fit. These questions are uncomfortable on purpose. If you can't name a specific human who needs your product, that's the most important thing to learn before writing any code.
+**Startup mode** — for founders and intrapreneurs building a business. You get six forcing questions that expose whether real demand exists: demand reality, status quo, desperate specificity, narrowest wedge, observation & surprise, and future-fit. These questions are uncomfortable on purpose. If you can't name a specific human who needs your product, that's the most important thing to learn before writing any code.
 
 **Builder mode** — for hackathons, side projects, open source, learning, and having fun. You get an enthusiastic collaborator who helps you find the coolest version of your idea. What would make someone say "whoa"? What's the fastest path to something you can share? The questions are generative, not interrogative.
 
 ### The design doc
 
-Both modes end with a design doc written to `~/.gstack/projects/` — and that doc feeds directly into `/plan-ceo-review` and `/plan-eng-review`. The full lifecycle is now: `office-hours → plan → implement → review → QA → ship → retro`.
+Both modes end with a design doc written to `~/.jstack/projects/` — and that doc feeds directly into `/plan-ceo-review` and `/plan-eng-review`. The full lifecycle is now: `brainstorm → plan → implement → review → QA → ship → retro`.
 
-After the design doc is approved, `/office-hours` reflects on what it noticed about how you think — not generic praise, but specific callbacks to things you said during the session. The observations appear in the design doc too, so you re-encounter them when you re-read later.
+After the design doc is approved, `/brainstorm` reflects on what it noticed about how you think — not generic praise, but specific callbacks to things you said during the session. The observations appear in the design doc too, so you re-encounter them when you re-read later.
 
 ---
 
@@ -147,7 +147,7 @@ It asks, **"what is the 10-star product hiding inside this request?"**
 - **HOLD SCOPE** — maximum rigor on the existing plan. No expansions surfaced.
 - **SCOPE REDUCTION** — find the minimum viable version. Cut everything else.
 
-Visions and decisions are persisted to `~/.gstack/projects/` so they survive beyond the conversation. Exceptional visions can be promoted to `docs/designs/` in your repo for the team.
+Visions and decisions are persisted to `~/.jstack/projects/` so they survive beyond the conversation. Exceptional visions can be promoted to `docs/designs/` in your repo for the team.
 
 ---
 
@@ -224,11 +224,11 @@ Every review (CEO, Eng, Design) logs its result. At the end of each review, you 
 +====================================================================+
 ```
 
-Eng Review is the only required gate (disable with `gstack-config set skip_eng_review true`). CEO and Design are informational — recommended for product and UI changes respectively.
+Eng Review is the only required gate (disable with `jstack-config set skip_eng_review true`). CEO and Design are informational — recommended for product and UI changes respectively.
 
 ### Plan-to-QA flow
 
-When `/plan-eng-review` finishes the test review section, it writes a test plan artifact to `~/.gstack/projects/`. When you later run `/qa`, it picks up that test plan automatically — your engineering review feeds directly into QA testing with no manual copy-paste.
+When `/plan-eng-review` finishes the test review section, it writes a test plan artifact to `~/.jstack/projects/`. When you later run `/qa`, it picks up that test plan automatically — your engineering review feeds directly into QA testing with no manual copy-paste.
 
 ---
 
@@ -401,7 +401,7 @@ Claude: [Runs full 80-item visual audit on the live site]
         Design Score: C → B+  |  AI Slop Score: D → A
         9 fixes applied (8 verified, 1 best-effort). 3 deferred.
 
-        [Report with before/after screenshots saved to .gstack/design-reports/]
+        [Report with before/after screenshots saved to .jstack/design-reports/]
 ```
 
 Nine commits, each touching one concern. The AI Slop score went from D to A because the three most recognizable patterns (gradient hero, 3-column grid, uniform radius) are gone.
@@ -423,7 +423,7 @@ You know the feeling. You have a feature, a page, a landing screen... and you're
 3. It generates 3 distinct design variants as PNGs
 4. A comparison board opens in your browser with all 3 side-by-side
 5. You click "Approve" on the one you like, or give feedback for another round
-6. The approved variant saves to `~/.gstack/projects/$SLUG/designs/` with an `approved.json`
+6. The approved variant saves to `~/.jstack/projects/$SLUG/designs/` with an `approved.json`
 
 That `approved.json` is one way to feed `/design-html`. The design pipeline chains: shotgun picks the direction, design-html renders it as working code. But `/design-html` also works with CEO plans, design reviews, or just a description.
 
@@ -445,7 +445,7 @@ Claude: [Generates 3 variants]
 
 You:    [Clicks "Approve" on Variant A in the browser]
 
-Claude: Approved Variant A. Saved to ~/.gstack/projects/myapp/designs/
+Claude: Approved Variant A. Saved to ~/.jstack/projects/myapp/designs/
         Next: run /design-html to generate production HTML from this mockup.
 ```
 
@@ -507,7 +507,7 @@ Claude: [Edits font-size and margin, browser auto-reloads]
 
 You:    Done
 
-Claude: Saved to ~/.gstack/projects/myapp/designs/hero-20260330/finalized.html
+Claude: Saved to ~/.jstack/projects/myapp/designs/hero-20260330/finalized.html
 ```
 
 ---
@@ -605,7 +605,7 @@ Claude: [Explores 12 pages, fills 3 forms, tests 2 flows]
         2. HIGH: Mobile nav menu doesn't close after selecting an item
         3. MEDIUM: Dashboard chart overlaps sidebar below 1024px
 
-        [Full report with screenshots saved to .gstack/qa-reports/]
+        [Full report with screenshots saved to .jstack/qa-reports/]
 ```
 
 **Testing authenticated pages:** Use `/setup-browser-cookies` first to import your real browser sessions, then `/qa` can test pages behind login.
@@ -934,9 +934,9 @@ Claude: Plan complete. 9 decisions auto-resolved, 2 taste decisions approved.
 
 This is my **institutional memory mode**.
 
-gstack learns from every session. Patterns, pitfalls, preferences, architectural decisions... they accumulate in `~/.gstack/projects/$SLUG/learnings.jsonl`. Each learning has a confidence score, source attribution, and the files it references.
+jstack learns from every session. Patterns, pitfalls, preferences, architectural decisions... they accumulate in `~/.jstack/projects/$SLUG/learnings.jsonl`. Each learning has a confidence score, source attribution, and the files it references.
 
-`/learn` lets you see what gstack has absorbed, search for specific patterns, prune stale entries (when referenced files no longer exist), and export learnings for team sharing. The real magic is in other skills... they automatically search learnings before making recommendations, and display "Prior learning applied" when a past insight is relevant.
+`/learn` lets you see what jstack has absorbed, search for specific patterns, prune stale entries (when referenced files no longer exist), and export learnings for team sharing. The real magic is in other skills... they automatically search learnings before making recommendations, and display "Prior learning applied" when a past insight is relevant.
 
 ```
 You:   /learn
@@ -959,9 +959,9 @@ Claude: 23 learnings for this project (14 high confidence, 6 medium, 3 low)
 
 This is my **co-presence mode**.
 
-`/browse` runs headless by default. You don't see what the agent sees. `/connect-chrome` changes that. It launches your actual Chrome browser controlled by Playwright, with the gstack Side Panel extension auto-loaded. You watch every action in real time... same screen, same window.
+`/browse` runs headless by default. You don't see what the agent sees. `/connect-chrome` changes that. It launches your actual Chrome browser controlled by Playwright, with the jstack Side Panel extension auto-loaded. You watch every action in real time... same screen, same window.
 
-A subtle green shimmer at the top edge tells you which Chrome window gstack controls. All existing browse commands work unchanged. The Side Panel shows a live activity feed of every command and a chat sidebar where you can direct Claude with natural language instructions.
+A subtle green shimmer at the top edge tells you which Chrome window jstack controls. All existing browse commands work unchanged. The Side Panel shows a live activity feed of every command and a chat sidebar where you can direct Claude with natural language instructions.
 
 ```
 You:   /connect-chrome
@@ -1080,12 +1080,12 @@ Remove the `/freeze` boundary, allowing edits everywhere again. The hooks stay r
 
 ---
 
-## `/gstack-upgrade`
+## `/jstack-upgrade`
 
-Keep gstack current with one command. It detects your install type (global at `~/.claude/skills/gstack` vs vendored in your project at `.claude/skills/gstack`), runs the upgrade, syncs both copies if you have dual installs, and shows you what changed.
+Keep jstack current with one command. It detects your install type (global at `~/.claude/skills/jstack` vs vendored in your project at `.claude/skills/jstack`), runs the upgrade, syncs both copies if you have dual installs, and shows you what changed.
 
 ```
-You:   /gstack-upgrade
+You:   /jstack-upgrade
 
 Claude: Current version: 0.7.4
         Latest version: 0.8.2
@@ -1100,7 +1100,7 @@ Claude: Current version: 0.7.4
         Upgraded to 0.8.2. Both global and project installs synced.
 ```
 
-Set `auto_upgrade: true` in `~/.gstack/config.yaml` to skip the prompt entirely — gstack upgrades silently at the start of each session when a new version is available.
+Set `auto_upgrade: true` in `~/.jstack/config.yaml` to skip the prompt entirely — jstack upgrades silently at the start of each session when a new version is available.
 
 ---
 
@@ -1110,13 +1110,13 @@ Set `auto_upgrade: true` in `~/.gstack/config.yaml` to skip the prompt entirely 
 
 ### Setup
 
-Install Greptile on your GitHub repo at [greptile.com](https://greptile.com) — it takes about 30 seconds. Once it's reviewing your PRs, gstack picks up its comments automatically. No additional configuration.
+Install Greptile on your GitHub repo at [greptile.com](https://greptile.com) — it takes about 30 seconds. Once it's reviewing your PRs, jstack picks up its comments automatically. No additional configuration.
 
 ### How it works
 
 The problem with any automated reviewer is triage. Greptile is good, but not every comment is a real issue. Some are false positives. Some flag things you already fixed three commits ago. Without a triage layer, the comments pile up and you start ignoring them — which defeats the purpose.
 
-gstack solves this. `/review` and `/ship` are now Greptile-aware. They read Greptile's comments, classify each one, and take action:
+jstack solves this. `/review` and `/ship` are now Greptile-aware. They read Greptile's comments, classify each one, and take action:
 
 - **Valid issues** get added to the critical findings and fixed before shipping
 - **Already-fixed issues** get an auto-reply acknowledging the catch
@@ -1126,7 +1126,7 @@ The result is a two-layer review: Greptile catches things asynchronously on the 
 
 ### Learning from history
 
-Every false positive you confirm gets saved to `~/.gstack/greptile-history.md`. Future runs auto-skip known FP patterns for your codebase. And `/retro` tracks Greptile's batting average over time — so you can see whether the signal-to-noise ratio is improving.
+Every false positive you confirm gets saved to `~/.jstack/greptile-history.md`. Future runs auto-skip known FP patterns for your codebase. And `/retro` tracks Greptile's batting average over time — so you can see whether the signal-to-noise ratio is improving.
 
 ### Example
 

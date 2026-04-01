@@ -1,10 +1,12 @@
 import type { TemplateContext } from './types';
 
 export function generateSlugEval(ctx: TemplateContext): string {
+  if (ctx.host === 'cursor') return ''; // Cursor: no slug infrastructure
   return `eval "$(${ctx.paths.binDir}/jstack-slug 2>/dev/null)"`;
 }
 
 export function generateSlugSetup(ctx: TemplateContext): string {
+  if (ctx.host === 'cursor') return ''; // Cursor: no slug infrastructure
   return `eval "$(${ctx.paths.binDir}/jstack-slug 2>/dev/null)" && mkdir -p ~/.jstack/projects/$SLUG`;
 }
 

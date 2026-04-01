@@ -66,11 +66,11 @@ if (evalsEnabled && process.env.EVALS_TIER) {
  *  the Skill tool appears in Claude's available tools list. */
 function installSkills(tmpDir: string) {
   const skillDirs = [
-    '', // root gstack SKILL.md
+    '', // root jstack SKILL.md
     'qa', 'qa-only', 'ship', 'review', 'plan-ceo-review', 'plan-eng-review',
     'plan-design-review', 'design-review', 'design-consultation', 'retro',
-    'document-release', 'investigate', 'office-hours', 'browse', 'setup-browser-cookies',
-    'gstack-upgrade', 'humanizer',
+    'document-release', 'investigate', 'brainstorm', 'browse', 'setup-browser-cookies',
+    'jstack-upgrade', 'humanizer',
   ];
 
   // Install to both project-level and user-level skill directories
@@ -84,7 +84,7 @@ function installSkills(tmpDir: string) {
     const srcPath = path.join(ROOT, skill, 'SKILL.md');
     if (!fs.existsSync(srcPath)) continue;
 
-    const skillName = skill || 'gstack';
+    const skillName = skill || 'jstack';
 
     for (const targetBase of installTargets) {
       const destDir = path.join(targetBase, skillName);
@@ -106,7 +106,7 @@ tool as your FIRST action. Do NOT answer directly, do NOT use other tools first.
 The skill has specialized workflows that produce better results than ad-hoc answers.
 
 Key routing rules:
-- Product ideas, "is this worth building", brainstorming → invoke office-hours
+- Product ideas, "is this worth building", brainstorming → invoke brainstorm
 - Bugs, errors, "why is this broken", 500 errors → invoke investigate
 - Ship, deploy, push, create PR → invoke ship
 - QA, test the site, find bugs → invoke qa
@@ -195,7 +195,7 @@ describeE2E('Skill Routing E2E — Developer Journey', () => {
     try {
 
       const testName = 'journey-ideation';
-      const expectedSkill = 'office-hours';
+      const expectedSkill = 'brainstorm';
       const result = await runSkillTest({
         prompt: "I've been thinking about building a waitlist management tool for restaurants. The existing solutions are expensive and overcomplicated. I want something simple — a tablet app where hosts can add parties, see wait times, and text customers when their table is ready. Help me think through whether this is worth building and what the key design decisions are.",
         workingDirectory: tmpDir,

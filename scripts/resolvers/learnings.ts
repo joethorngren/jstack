@@ -14,6 +14,8 @@
 import type { TemplateContext } from './types';
 
 export function generateLearningsSearch(ctx: TemplateContext): string {
+  if (ctx.host === 'cursor') return ''; // Cursor: no learnings infrastructure
+
   if (ctx.host === 'codex') {
     // Codex: simpler version, no cross-project, uses $JSTACK_BIN
     return `## Prior Learnings
@@ -68,6 +70,8 @@ smarter on their codebase over time.`;
 }
 
 export function generateLearningsLog(ctx: TemplateContext): string {
+  if (ctx.host === 'cursor') return ''; // Cursor: no learnings infrastructure
+
   const binDir = ctx.host === 'codex' ? '$JSTACK_BIN' : ctx.paths.binDir;
 
   return `## Capture Learnings
