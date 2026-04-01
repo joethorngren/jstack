@@ -1,0 +1,493 @@
+#!/usr/bin/env bash
+# jstack-init — create a company-specific fork of jstack
+#
+# Usage:
+#   jstack init --company <name>   — fork + rename + configure
+#   jstack-init --company <name>   — same, direct invocation
+#
+# The company name must be alphanumeric + hyphens (e.g., "arity", "acme-corp").
+# Requires: gh (GitHub CLI, authenticated), git
+set -euo pipefail
+
+# ─── Helpers ─────────────────────────────────────────────────────────
+
+usage() {
+  cat <<'USAGE'
+Usage: jstack init --company <name>
+
+Create a company-specific fork of jstack.
+
+Options:
+  --company <name>   Company name (alphanumeric + hyphens only)
+  -h, --help         Show this help
+
+Examples:
+  jstack init --company arity
+  jstack init --company acme-corp
+USAGE
+}
+
+die() {
+  echo "Error: $1" >&2
+  exit 1
+}
+
+info() {
+  echo "  $1"
+}
+
+step() {
+  echo ""
+  echo "→ $1"
+}
+
+# Portable in-place sed (BSD vs GNU)
+sedi() {
+  if sed --version >/dev/null 2>&1; then
+    # GNU sed
+    sed -i "$@"
+  else
+    # BSD sed (macOS)
+    sed -i '' "$@"
+  fi
+}
+
+cleanup_on_failure() {
+  if [[ -n "${CLONE_DIR:-}" ]] && [[ -d "$CLONE_DIR" ]]; then
+    echo ""
+    echo "Warning: init failed partway through. Partial clone left at: $CLONE_DIR" >&2
+    echo "  You can remove it with: rm -rf \"$CLONE_DIR\"" >&2
+    echo "  Or inspect it and retry the failed step manually." >&2
+  fi
+}
+
+trap cleanup_on_failure ERR
+
+# ─── Parse args ──────────────────────────────────────────────────────
+
+COMPANY=""
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --company)
+      [[ -z "${2:-}" ]] && die "Missing value for --company"
+      COMPANY="$2"; shift 2
+      ;;
+    --company=*)
+      COMPANY="${1#--company=}"; shift
+      ;;
+    -h|--help)
+      usage; exit 0
+      ;;
+    *)
+      die "Unknown option: $1 (see --help)"
+      ;;
+  esac
+done
+
+# Interactive prompt if --company not provided
+if [[ -z "$COMPANY" ]]; then
+  if [[ -t 0 ]]; then
+    printf "Company name: "
+    read -r COMPANY
+  else
+    die "Company name is required. Use --company <name> or run interactively."
+  fi
+fi
+
+# ─── Validate inputs ────────────────────────────────────────────────
+
+# Company name: alphanumeric + hyphens, must start with a letter
+if ! printf '%s' "$COMPANY" | grep -qE '^[a-zA-Z][a-zA-Z0-9-]*$'; then
+  die "Company name must start with a letter and contain only letters, numbers, and hyphens (got: '$COMPANY')"
+fi
+
+# Lowercase the company name for consistency
+COMPANY="$(printf '%s' "$COMPANY" | tr '[:upper:]' '[:lower:]')"
+
+# Derived names
+STACK_NAME="${COMPANY}-stack"
+STACK_DIR_UC="$(printf '%s' "${COMPANY}_STACK" | tr '[:lower:]' '[:upper:]' | tr '-' '_')"
+CONFIG_DIR=".${STACK_NAME}"
+ENV_ROOT="${STACK_DIR_UC}_ROOT"
+
+# Check for gh CLI
+if ! command -v gh >/dev/null 2>&1; then
+  echo "Error: GitHub CLI (gh) is required but not installed." >&2
+  echo "" >&2
+  echo "Install it:" >&2
+  echo "  macOS:  brew install gh" >&2
+  echo "  Linux:  https://github.com/cli/cli/blob/trunk/docs/install_linux.md" >&2
+  echo "  Other:  https://cli.github.com/" >&2
+  exit 1
+fi
+
+# Check gh authentication
+if ! gh auth status >/dev/null 2>&1; then
+  echo "Error: GitHub CLI is not authenticated." >&2
+  echo "" >&2
+  echo "Run: gh auth login" >&2
+  exit 1
+fi
+
+# Check for git
+if ! command -v git >/dev/null 2>&1; then
+  die "git is required but not installed."
+fi
+
+# Get the authenticated GitHub user
+GH_USER="$(gh api user --jq '.login' 2>/dev/null)" || die "Could not determine GitHub username. Run: gh auth login"
+
+echo ""
+echo "Creating ${STACK_NAME} for ${COMPANY}..."
+echo "  GitHub user: ${GH_USER}"
+echo "  Fork name:   ${GH_USER}/${STACK_NAME}"
+
+# ─── Step 1: Fork on GitHub ─────────────────────────────────────────
+
+step "Forking joethorngren/jstack → ${GH_USER}/${STACK_NAME}..."
+
+FORK_EXISTS=0
+if gh repo view "${GH_USER}/${STACK_NAME}" >/dev/null 2>&1; then
+  FORK_EXISTS=1
+fi
+
+if [[ "$FORK_EXISTS" -eq 1 ]]; then
+  if [[ -t 0 ]]; then
+    printf "  Fork ${GH_USER}/${STACK_NAME} already exists. Use it? [Y/n] "
+    read -r USE_EXISTING
+    case "$USE_EXISTING" in
+      [nN]*) die "Aborted. Remove the existing fork first: gh repo delete ${GH_USER}/${STACK_NAME}" ;;
+    esac
+  else
+    info "Fork ${GH_USER}/${STACK_NAME} already exists — using it."
+  fi
+else
+  gh repo fork joethorngren/jstack --fork-name "${STACK_NAME}" --clone=false || \
+    die "Fork failed. You can create it manually at: https://github.com/joethorngren/jstack/fork"
+  info "Fork created."
+fi
+
+# ─── Step 2: Clone the fork locally ─────────────────────────────────
+
+step "Cloning ${GH_USER}/${STACK_NAME}..."
+
+CLONE_DIR="${STACK_NAME}"
+
+if [[ -d "$CLONE_DIR" ]]; then
+  if [[ -t 0 ]]; then
+    printf "  Directory ./${CLONE_DIR} already exists. Use it? [Y/n] "
+    read -r USE_EXISTING_DIR
+    case "$USE_EXISTING_DIR" in
+      [nN]*) die "Aborted. Remove or rename the existing directory first." ;;
+    esac
+  else
+    die "Directory ./${CLONE_DIR} already exists."
+  fi
+else
+  gh repo clone "${GH_USER}/${STACK_NAME}" "${CLONE_DIR}" || \
+    die "Clone failed. Try: git clone https://github.com/${GH_USER}/${STACK_NAME}.git ${CLONE_DIR}"
+fi
+
+# ─── Step 3: Global rename ──────────────────────────────────────────
+
+step "Renaming jstack → ${STACK_NAME} across the codebase..."
+
+cd "${CLONE_DIR}"
+
+# Rename in text files (skip .git, node_modules, dist, binaries, images)
+# Use find + sed for mechanical rename.
+
+# 3a. Binary/script file renames: jstack-* → ${company}-stack-*
+for f in bin/jstack-*; do
+  [[ -e "$f" ]] || continue
+  base="$(basename "$f")"
+  newbase="$(printf '%s' "$base" | sed "s/^jstack-/${COMPANY}-stack-/")"
+  if [[ "$base" != "$newbase" ]]; then
+    git mv "$f" "bin/${newbase}" 2>/dev/null || mv "$f" "bin/${newbase}"
+  fi
+done
+
+# 3b. Content replacements in text files
+# Order matters: do longer/more-specific patterns first to avoid partial matches.
+find . \
+  -not -path './.git/*' \
+  -not -path './node_modules/*' \
+  -not -path './browse/dist/*' \
+  -not -path './design/dist/*' \
+  -not -name '*.png' \
+  -not -name '*.jpg' \
+  -not -name '*.gif' \
+  -not -name '*.ico' \
+  -not -name '*.woff*' \
+  -not -name '*.ttf' \
+  -not -name '*.eot' \
+  -not -name '*.lock' \
+  -type f \
+  -exec grep -l 'jstack\|JSTACK\|joethorngren/jstack' {} + 2>/dev/null | while read -r file; do
+    # Skip binary files
+    if file "$file" | grep -q 'executable\|binary\|Mach-O'; then
+      continue
+    fi
+    # Replace env var names: $JSTACK_ROOT → $COMPANY_STACK_ROOT (uppercase, underscored)
+    sedi \
+      -e "s|JSTACK_STATE_DIR|${STACK_DIR_UC}_STATE_DIR|g" \
+      -e "s|JSTACK_ROOT|${ENV_ROOT}|g" \
+      -e "s|JSTACK_SETUP_RUNNING|${STACK_DIR_UC}_SETUP_RUNNING|g" \
+      -e "s|JSTACK_RELINK|${STACK_DIR_UC}_RELINK|g" \
+      "$file" 2>/dev/null || true
+    # Replace config dir: ~/.jstack → ~/.${company}-stack
+    sedi \
+      -e "s|~/\.jstack|~/.${STACK_NAME}|g" \
+      -e "s|\\\$HOME/\.jstack|\$HOME/.${STACK_NAME}|g" \
+      "$file" 2>/dev/null || true
+    # Replace binary names: jstack-config → ${company}-stack-config, etc.
+    sedi \
+      -e "s|jstack-config|${STACK_NAME}-config|g" \
+      -e "s|jstack-relink|${STACK_NAME}-relink|g" \
+      -e "s|jstack-patch-names|${STACK_NAME}-patch-names|g" \
+      -e "s|jstack-slug|${STACK_NAME}-slug|g" \
+      -e "s|jstack-repo-mode|${STACK_NAME}-repo-mode|g" \
+      -e "s|jstack-diff-scope|${STACK_NAME}-diff-scope|g" \
+      -e "s|jstack-global-discover|${STACK_NAME}-global-discover|g" \
+      -e "s|jstack-extension|${STACK_NAME}-extension|g" \
+      -e "s|jstack-learnings-log|${STACK_NAME}-learnings-log|g" \
+      -e "s|jstack-learnings-search|${STACK_NAME}-learnings-search|g" \
+      -e "s|jstack-open-url|${STACK_NAME}-open-url|g" \
+      -e "s|jstack-platform-detect|${STACK_NAME}-platform-detect|g" \
+      -e "s|jstack-review-log|${STACK_NAME}-review-log|g" \
+      -e "s|jstack-review-read|${STACK_NAME}-review-read|g" \
+      -e "s|jstack-timeline-log|${STACK_NAME}-timeline-log|g" \
+      -e "s|jstack-timeline-read|${STACK_NAME}-timeline-read|g" \
+      -e "s|jstack-uninstall|${STACK_NAME}-uninstall|g" \
+      -e "s|jstack-update-check|${STACK_NAME}-update-check|g" \
+      "$file" 2>/dev/null || true
+    # Replace GitHub references
+    sedi \
+      -e "s|joethorngren/jstack|${GH_USER}/${STACK_NAME}|g" \
+      "$file" 2>/dev/null || true
+    # Replace remaining product name references (case-sensitive)
+    sedi \
+      -e "s|jstack|${STACK_NAME}|g" \
+      "$file" 2>/dev/null || true
+    # Replace package name in package.json specifically
+    # (already handled by the above, but ensure the "name" field is right)
+  done
+
+# 3c. Rename package.json name field specifically (the above sed handles it,
+# but let's make sure it's clean)
+if [[ -f package.json ]]; then
+  # Verify the name field was updated
+  if grep -q '"name": "jstack"' package.json 2>/dev/null; then
+    sedi "s/\"name\": \"jstack\"/\"name\": \"${STACK_NAME}\"/" package.json
+  fi
+fi
+
+info "Rename complete."
+
+# ─── Step 4: Create company-specific directories ────────────────────
+
+step "Creating company-specific directories..."
+
+mkdir -p "${COMPANY}-agents"
+mkdir -p "${COMPANY}-skills"
+
+# Add .gitkeep so empty dirs are tracked
+touch "${COMPANY}-agents/.gitkeep"
+touch "${COMPANY}-skills/.gitkeep"
+
+info "Created ${COMPANY}-agents/ and ${COMPANY}-skills/"
+
+# ─── Step 5: Generate starter DESIGN.md ──────────────────────────────
+
+step "Generating DESIGN.md..."
+
+BRAND_COLOR="#0066FF"
+SECONDARY_COLOR="#9CA3AF"
+FONT_FAMILY="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+TONE="professional but friendly"
+
+if [[ -t 0 ]]; then
+  echo "  Configure your brand (press Enter for defaults):"
+  echo ""
+  printf "  Primary brand color [${BRAND_COLOR}]: "
+  read -r _color
+  [[ -n "$_color" ]] && BRAND_COLOR="$_color"
+
+  printf "  Secondary color [${SECONDARY_COLOR}]: "
+  read -r _secondary
+  [[ -n "$_secondary" ]] && SECONDARY_COLOR="$_secondary"
+
+  printf "  Font family [system fonts]: "
+  read -r _font
+  [[ -n "$_font" ]] && FONT_FAMILY="$_font"
+
+  printf "  Tone [${TONE}]: "
+  read -r _tone
+  [[ -n "$_tone" ]] && TONE="$_tone"
+fi
+
+cat > DESIGN.md <<DESIGN_EOF
+# ${COMPANY} Design System
+
+## Brand Identity
+
+- **Company:** ${COMPANY}
+- **Stack:** ${STACK_NAME}
+
+## Colors
+
+| Role       | Value          | Usage                          |
+|------------|----------------|--------------------------------|
+| Primary    | ${BRAND_COLOR} | Buttons, links, key UI accents |
+| Secondary  | ${SECONDARY_COLOR} | Borders, muted text, backgrounds |
+
+## Typography
+
+- **Font family:** ${FONT_FAMILY}
+- **Base size:** 16px
+- **Scale:** 1.25 (major third)
+
+## Tone & Voice
+
+${TONE}
+
+## Layout Principles
+
+- Mobile-first responsive design
+- Maximum content width: 1200px
+- Consistent spacing scale: 4px base unit
+
+## Component Patterns
+
+_Add your component patterns here as the design system evolves._
+
+## Accessibility
+
+- WCAG 2.1 AA minimum
+- Semantic HTML first
+- Keyboard navigable
+- Screen reader friendly
+DESIGN_EOF
+
+info "DESIGN.md created."
+
+# ─── Step 6: Set up upstream tracking ────────────────────────────────
+
+step "Setting up upstream tracking..."
+
+# Add upstream remote pointing to the original jstack repo
+if git remote get-url upstream >/dev/null 2>&1; then
+  info "Upstream remote already exists — updating."
+  git remote set-url upstream https://github.com/joethorngren/jstack.git
+else
+  git remote add upstream https://github.com/joethorngren/jstack.git
+fi
+
+# Prevent accidental push to upstream
+git remote set-url --push upstream no_push
+
+info "Upstream: https://github.com/joethorngren/jstack.git (push disabled)"
+
+# ─── Step 7: Generate CLAUDE.md with routing rules ───────────────────
+
+step "Generating CLAUDE.md..."
+
+cat > CLAUDE.md <<CLAUDE_EOF
+# ${STACK_NAME} development
+
+## About
+
+This is **${COMPANY}**'s engineering stack, forked from [jstack](https://github.com/joethorngren/jstack).
+
+- **Company:** ${COMPANY}
+- **Stack name:** ${STACK_NAME}
+- **Config directory:** ~/.${STACK_NAME}/
+
+## Design
+
+See [DESIGN.md](./DESIGN.md) for brand colors, typography, tone, and component patterns.
+
+## Skill routing
+
+This stack includes all jstack skills. They auto-invoke when your request matches:
+
+- \`/ship\` — ship workflow (test, review, PR)
+- \`/review\` — PR code review
+- \`/qa\` — QA test a web app and fix bugs
+- \`/investigate\` — systematic root-cause debugging
+- \`/browse\` — headless browser for any web task
+- \`/design-review\` — visual QA + design audit
+- \`/benchmark\` — performance regression detection
+- \`/cso\` — security audit (OWASP + STRIDE)
+- \`/office-hours\` — startup diagnostic + brainstorm
+
+Company-specific agents live in \`${COMPANY}-agents/\`.
+Company-specific skills live in \`${COMPANY}-skills/\`.
+
+## Upstream tracking
+
+This repo tracks \`joethorngren/jstack\` as \`upstream\` (push disabled).
+
+To pull updates from jstack:
+\`\`\`bash
+git fetch upstream
+git merge upstream/main
+\`\`\`
+
+## Commands
+
+\`\`\`bash
+bun install          # install dependencies
+bun test             # run tests
+bun run build        # build binaries + generate docs
+./setup              # one-time setup: build + register skills
+\`\`\`
+CLAUDE_EOF
+
+info "CLAUDE.md created."
+
+# ─── Step 8: Run setup ───────────────────────────────────────────────
+
+step "Running setup..."
+
+if [[ -x ./setup ]]; then
+  ./setup || {
+    echo ""
+    echo "Warning: setup script exited with an error." >&2
+    echo "  You can re-run it later: cd ${CLONE_DIR} && ./setup" >&2
+  }
+else
+  info "No executable setup script found — skipping. Run ./setup manually after review."
+fi
+
+# ─── Step 9: Commit the customization ────────────────────────────────
+
+step "Committing customization..."
+
+git add -A
+git commit -m "feat: initialize ${STACK_NAME} for ${COMPANY}
+
+Forked from joethorngren/jstack.
+Renamed jstack → ${STACK_NAME} across the codebase.
+Added company-specific directories and starter DESIGN.md." 2>/dev/null || true
+
+# ─── Done ────────────────────────────────────────────────────────────
+
+echo ""
+echo "========================================"
+echo "  ${STACK_NAME} is ready!"
+echo "========================================"
+echo ""
+echo "Your company stack is at: ./${CLONE_DIR}/"
+echo ""
+echo "Next steps:"
+echo "  1. cd ${CLONE_DIR}"
+echo "  2. Add company-specific agents to ${COMPANY}-agents/"
+echo "  3. Add company-specific skills to ${COMPANY}-skills/"
+echo "  4. Edit DESIGN.md with your brand guidelines"
+echo "  5. Run ./setup to rebuild after changes"
+echo ""
+echo "To pull updates from jstack:"
+echo "  git fetch upstream"
+echo "  git merge upstream/main"
+echo ""
