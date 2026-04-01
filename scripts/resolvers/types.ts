@@ -10,25 +10,25 @@ export interface HostPaths {
 
 export const HOST_PATHS: Record<Host, HostPaths> = {
   claude: {
-    skillRoot: '~/.claude/skills/gstack',
-    localSkillRoot: '.claude/skills/gstack',
-    binDir: '~/.claude/skills/gstack/bin',
-    browseDir: '~/.claude/skills/gstack/browse/dist',
-    designDir: '~/.claude/skills/gstack/design/dist',
+    skillRoot: '~/.claude/skills/jstack',
+    localSkillRoot: '.claude/skills/jstack',
+    binDir: '~/.claude/skills/jstack/bin',
+    browseDir: '~/.claude/skills/jstack/browse/dist',
+    designDir: '~/.claude/skills/jstack/design/dist',
   },
   codex: {
-    skillRoot: '$GSTACK_ROOT',
-    localSkillRoot: '.agents/skills/gstack',
-    binDir: '$GSTACK_BIN',
-    browseDir: '$GSTACK_BROWSE',
-    designDir: '$GSTACK_DESIGN',
+    skillRoot: '$JSTACK_ROOT',
+    localSkillRoot: '.agents/skills/jstack',
+    binDir: '$JSTACK_BIN',
+    browseDir: '$JSTACK_BROWSE',
+    designDir: '$JSTACK_DESIGN',
   },
   factory: {
-    skillRoot: '$GSTACK_ROOT',
-    localSkillRoot: '.factory/skills/gstack',
-    binDir: '$GSTACK_BIN',
-    browseDir: '$GSTACK_BROWSE',
-    designDir: '$GSTACK_DESIGN',
+    skillRoot: '$JSTACK_ROOT',
+    localSkillRoot: '.factory/skills/jstack',
+    binDir: '$JSTACK_BIN',
+    browseDir: '$JSTACK_BROWSE',
+    designDir: '$JSTACK_DESIGN',
   },
 };
 

@@ -44,7 +44,7 @@ let HOST: Host = HOST_ARG_VAL === 'all' ? 'claude' : HOST_ARG_VAL;
 
 // ─── Shared Design Constants ────────────────────────────────
 
-/** gstack's 10 AI slop anti-patterns — shared between DESIGN_METHODOLOGY and DESIGN_HARD_RULES */
+/** jstack's 10 AI slop anti-patterns — shared between DESIGN_METHODOLOGY and DESIGN_HARD_RULES */
 const AI_SLOP_BLACKLIST = [
   'Purple/violet/indigo gradient backgrounds or blue-to-purple color schemes',
   '**The 3-column feature grid:** icon-in-colored-circle + bold title + 2-line description, repeated 3x symmetrically. THE most recognizable AI layout.',
@@ -85,13 +85,13 @@ const OPENAI_LITMUS_CHECKS = [
 // Re-export local copy for use in this file (matches codex-helpers.ts)
 // Accepts optional frontmatter name to support directory/invocation name divergence
 function externalSkillName(skillDir: string, frontmatterName?: string): string {
-  // Root skill (skillDir === '' or '.') always maps to 'gstack' regardless of frontmatter
-  if (skillDir === '.' || skillDir === '') return 'gstack';
+  // Root skill (skillDir === '' or '.') always maps to 'jstack' regardless of frontmatter
+  if (skillDir === '.' || skillDir === '') return 'jstack';
   // Use frontmatter name when it differs from directory name (e.g., run-tests/ with name: test)
   const baseName = frontmatterName && frontmatterName !== skillDir ? frontmatterName : skillDir;
-  // Don't double-prefix: gstack-upgrade → gstack-upgrade (not gstack-gstack-upgrade)
-  if (baseName.startsWith('gstack-')) return baseName;
-  return `gstack-${baseName}`;
+  // Don't double-prefix: jstack-upgrade → jstack-upgrade (not jstack-jstack-upgrade)
+  if (baseName.startsWith('jstack-')) return baseName;
+  return `jstack-${baseName}`;
 }
 
 function extractNameAndDescription(content: string): { name: string; description: string } {
@@ -295,9 +295,9 @@ function processExternalHost(
   }
 
   // Replace hardcoded Claude paths with host-appropriate paths
-  result = result.replace(/~\/\.claude\/skills\/gstack/g, ctx.paths.skillRoot);
-  result = result.replace(/\.claude\/skills\/gstack/g, ctx.paths.localSkillRoot);
-  result = result.replace(/\.claude\/skills\/review/g, `${config.hostSubdir}/skills/gstack/review`);
+  result = result.replace(/~\/\.claude\/skills\/jstack/g, ctx.paths.skillRoot);
+  result = result.replace(/\.claude\/skills\/jstack/g, ctx.paths.localSkillRoot);
+  result = result.replace(/\.claude\/skills\/review/g, `${config.hostSubdir}/skills/jstack/review`);
   result = result.replace(/\.claude\/skills/g, `${config.hostSubdir}/skills`);
 
   // Factory-only: translate Claude Code tool names to generic phrasing
@@ -476,11 +476,11 @@ if (failures.length > 0 && HOST_ARG_VAL === 'all') {
 // After all hosts processed, warn if prefix patches may need re-applying
 if (!DRY_RUN) {
   try {
-    const configPath = path.join(process.env.HOME || '', '.gstack', 'config.yaml');
+    const configPath = path.join(process.env.HOME || '', '.jstack', 'config.yaml');
     if (fs.existsSync(configPath)) {
       const config = fs.readFileSync(configPath, 'utf-8');
       if (/^skill_prefix:\s*true/m.test(config)) {
-        console.log('\nNote: skill_prefix is true. Run gstack-relink to re-apply name: patches.');
+        console.log('\nNote: skill_prefix is true. Run jstack-relink to re-apply name: patches.');
       }
     }
   } catch { /* non-fatal */ }
