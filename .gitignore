@@ -7,6 +7,7 @@ bin/gstack-global-discover
 .claude/skills/
 .agents/
 .factory/
+.cursor/
 .context/
 extension/.auth.json
 .gstack-worktrees/
@@ -18,3 +19,4 @@ extension/.auth.json
 .env.*
 !.env.example
 supabase/.temp/
+.jstack/

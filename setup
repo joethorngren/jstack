@@ -34,7 +34,7 @@ SKILL_PREFIX=1
 SKILL_PREFIX_FLAG=0
 while [ $# -gt 0 ]; do
   case "$1" in
-    --host) [ -z "$2" ] && echo "Missing value for --host (expected claude, codex, kiro, or auto)" >&2 && exit 1; HOST="$2"; shift 2 ;;
+    --host) [ -z "$2" ] && echo "Missing value for --host (expected claude, codex, kiro, cursor, or auto)" >&2 && exit 1; HOST="$2"; shift 2 ;;
     --host=*) HOST="${1#--host=}"; shift ;;
     --local) LOCAL_INSTALL=1; shift ;;
     --prefix)    SKILL_PREFIX=1; SKILL_PREFIX_FLAG=1; shift ;;
@@ -44,8 +44,8 @@ while [ $# -gt 0 ]; do
 done
 
 case "$HOST" in
-  claude|codex|kiro|factory|auto) ;;
-  *) echo "Unknown --host value: $HOST (expected claude, codex, kiro, factory, or auto)" >&2; exit 1 ;;
+  claude|codex|kiro|factory|cursor|auto) ;;
+  *) echo "Unknown --host value: $HOST (expected claude, codex, kiro, factory, cursor, or auto)" >&2; exit 1 ;;
 esac
 
 # ─── Resolve skill prefix preference ─────────────────────────
@@ -104,13 +104,15 @@ INSTALL_CLAUDE=0
 INSTALL_CODEX=0
 INSTALL_KIRO=0
 INSTALL_FACTORY=0
+INSTALL_CURSOR=0
 if [ "$HOST" = "auto" ]; then
   command -v claude >/dev/null 2>&1 && INSTALL_CLAUDE=1
   command -v codex >/dev/null 2>&1 && INSTALL_CODEX=1
   command -v kiro-cli >/dev/null 2>&1 && INSTALL_KIRO=1
   command -v droid >/dev/null 2>&1 && INSTALL_FACTORY=1
+  command -v cursor >/dev/null 2>&1 && INSTALL_CURSOR=1
   # If none found, default to claude
-  if [ "$INSTALL_CLAUDE" -eq 0 ] && [ "$INSTALL_CODEX" -eq 0 ] && [ "$INSTALL_KIRO" -eq 0 ] && [ "$INSTALL_FACTORY" -eq 0 ]; then
+  if [ "$INSTALL_CLAUDE" -eq 0 ] && [ "$INSTALL_CODEX" -eq 0 ] && [ "$INSTALL_KIRO" -eq 0 ] && [ "$INSTALL_FACTORY" -eq 0 ] && [ "$INSTALL_CURSOR" -eq 0 ]; then
     INSTALL_CLAUDE=1
   fi
 elif [ "$HOST" = "claude" ]; then
@@ -121,6 +123,8 @@ elif [ "$HOST" = "kiro" ]; then
   INSTALL_KIRO=1
 elif [ "$HOST" = "factory" ]; then
   INSTALL_FACTORY=1
+elif [ "$HOST" = "cursor" ]; then
+  INSTALL_CURSOR=1
 fi
 
 migrate_direct_codex_install() {
@@ -220,6 +224,16 @@ if [ "$INSTALL_FACTORY" -eq 1 ] && [ "$NEEDS_BUILD" -eq 0 ]; then
     cd "$SOURCE_JSTACK_DIR"
     bun install --frozen-lockfile 2>/dev/null || bun install
     bun run gen:skill-docs --host factory
+  )
+fi
+
+# 1d. Generate .cursor/rules/ Cursor skill docs
+if [ "$INSTALL_CURSOR" -eq 1 ] && [ "$NEEDS_BUILD" -eq 0 ]; then
+  echo "Generating .cursor/ skill docs..."
+  (
+    cd "$SOURCE_JSTACK_DIR"
+    bun install --frozen-lockfile 2>/dev/null || bun install
+    bun run gen:skill-docs --host cursor
   )
 fi
 
@@ -671,7 +685,57 @@ if [ "$INSTALL_FACTORY" -eq 1 ]; then
   echo "  factory skills: $FACTORY_SKILLS"
 fi
 
-# 7. Create .agents/ sidecar symlinks for the real Codex skill target.
+# 7. Cursor: generate .mdc rules + MCP server config
+if [ "$INSTALL_CURSOR" -eq 1 ]; then
+  echo ""
+  echo "Setting up Cursor integration..."
+
+  # Generate .cursor/rules/*.mdc from skill templates
+  (cd "$SOURCE_JSTACK_DIR" && bun run gen:skill-docs --host cursor 2>/dev/null)
+
+  # Write .cursor/mcp.json (merge-safe: don't clobber existing MCP servers)
+  CURSOR_DIR="$SOURCE_JSTACK_DIR/.cursor"
+  mkdir -p "$CURSOR_DIR"
+  MCP_JSON="$CURSOR_DIR/mcp.json"
+  MCP_SERVER_PATH="$SOURCE_JSTACK_DIR/browse/src/mcp-server.ts"
+
+  if [ -f "$MCP_JSON" ]; then
+    # Merge: add jstack-browse to existing mcpServers (preserve other servers)
+    bun -e "
+      const fs = require('fs');
+      const existing = JSON.parse(fs.readFileSync('$MCP_JSON', 'utf-8'));
+      if (!existing.mcpServers) existing.mcpServers = {};
+      existing.mcpServers['jstack-browse'] = {
+        command: 'bun',
+        args: ['run', '$MCP_SERVER_PATH']
+      };
+      fs.writeFileSync('$MCP_JSON', JSON.stringify(existing, null, 2) + '\n');
+    " 2>/dev/null
+    echo "  Updated: $MCP_JSON (merged jstack-browse MCP server)"
+  else
+    # Create new
+    cat > "$MCP_JSON" <<MCPEOF
+{
+  "mcpServers": {
+    "jstack-browse": {
+      "command": "bun",
+      "args": ["run", "$MCP_SERVER_PATH"]
+    }
+  }
+}
+MCPEOF
+    echo "  Created: $MCP_JSON"
+  fi
+
+  echo "  Rules:  $CURSOR_DIR/rules/jstack-*.mdc"
+  echo "  MCP:    jstack-browse (10 browse tools)"
+  echo ""
+  echo "jstack ready (cursor)."
+  echo "  To use in a project: copy .cursor/ to your project root"
+  echo "  browse MCP: $MCP_SERVER_PATH"
+fi
+
+# 8. Create .agents/ sidecar symlinks for the real Codex skill target.
 # The root Codex skill ends up pointing at $SOURCE_JSTACK_DIR/.agents/skills/jstack,
 # so the runtime assets must live there for both global and repo-local installs.
 if [ "$INSTALL_CODEX" -eq 1 ]; then
