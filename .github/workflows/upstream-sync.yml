@@ -1,0 +1,220 @@
+name: Upstream Sync
+
+on:
+  schedule:
+    # Every Monday at 9:00 UTC
+    - cron: "0 9 * * 1"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run — show what would happen without pushing or creating a PR"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream remote and fetch
+        run: |
+          git remote add upstream https://github.com/garrytan/gstack.git || true
+          git fetch upstream main
+
+      - name: Count new upstream commits
+        id: compare
+        run: |
+          # Determine the comparison base: upstream-sync/last tag or fork point
+          if git rev-parse "upstream-sync/last" >/dev/null 2>&1; then
+            BASE="upstream-sync/last"
+            echo "base=upstream-sync/last (tag)" >> "$GITHUB_OUTPUT"
+          else
+            BASE=$(git merge-base HEAD upstream/main)
+            echo "base=${BASE} (fork point)" >> "$GITHUB_OUTPUT"
+          fi
+
+          COUNT=$(git rev-list --count "${BASE}..upstream/main")
+          echo "count=${COUNT}" >> "$GITHUB_OUTPUT"
+          echo "base_ref=${BASE}" >> "$GITHUB_OUTPUT"
+
+          if [ "$COUNT" -eq 0 ]; then
+            echo "No new upstream commits since ${BASE}."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "${COUNT} new upstream commit(s) since ${BASE}."
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Exit early if no new commits
+        if: steps.compare.outputs.skip == 'true'
+        run: |
+          echo "Summary: no new upstream commits to merge."
+          echo "  Base: ${{ steps.compare.outputs.base }}"
+          echo "  Upstream HEAD: $(git rev-parse --short upstream/main)"
+          echo "  Nothing to do."
+
+      - name: Create sync branch
+        if: steps.compare.outputs.skip == 'false'
+        id: branch
+        run: |
+          BRANCH="upstream-sync/$(date +%Y-%m-%d)"
+          # Append short hash if branch already exists (multiple runs same day)
+          if git rev-parse --verify "refs/heads/${BRANCH}" >/dev/null 2>&1; then
+            BRANCH="${BRANCH}-$(git rev-parse --short upstream/main)"
+          fi
+          git checkout -b "$BRANCH"
+          echo "name=${BRANCH}" >> "$GITHUB_OUTPUT"
+
+      - name: Attempt merge
+        if: steps.compare.outputs.skip == 'false'
+        id: merge
+        run: |
+          # Attempt merge, allow conflicts (exit code 1 is OK)
+          if git merge upstream/main --no-commit --no-ff; then
+            echo "merge_clean=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "merge_clean=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Make merge script executable
+        if: steps.compare.outputs.skip == 'false'
+        run: chmod +x bin/jstack-upstream-merge
+
+      - name: Run smart conflict resolution
+        if: steps.compare.outputs.skip == 'false'
+        id: resolve
+        run: |
+          # Capture resolution report (preserve exit code across || true)
+          EXIT_CODE=0
+          REPORT=$(bin/jstack-upstream-merge 2>&1) || EXIT_CODE=$?
+          echo "exit_code=${EXIT_CODE}" >> "$GITHUB_OUTPUT"
+
+          # Save report for PR body
+          {
+            echo "report<<REPORT_EOF"
+            echo "$REPORT"
+            echo "REPORT_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "$REPORT"
+
+      - name: Check for telemetry code
+        if: steps.compare.outputs.skip == 'false'
+        id: telemetry
+        run: |
+          # Check staged + working tree for telemetry patterns
+          if git diff --cached --name-only | xargs grep -l 'supabase\|telemetry-sync\|telemetry-log\|installation-id' 2>/dev/null; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            echo "WARNING: telemetry code detected in merge"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "Telemetry check: CLEAN"
+          fi
+
+      - name: Commit the merge
+        if: steps.compare.outputs.skip == 'false'
+        run: |
+          git add -A
+          git commit -m "chore(upstream): merge gstack changes ($(date +%Y-%m-%d))" --allow-empty || true
+
+      - name: Generate upstream commit log
+        if: steps.compare.outputs.skip == 'false'
+        id: commits
+        run: |
+          BASE="${{ steps.compare.outputs.base_ref }}"
+          {
+            echo "log<<LOG_EOF"
+            git log --oneline "${BASE}..upstream/main"
+            echo "LOG_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Push branch and create PR
+        if: steps.compare.outputs.skip == 'false' && inputs.dry_run != true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="${{ steps.branch.outputs.name }}"
+          git push origin "$BRANCH"
+
+          LABELS="upstream-sync,automated"
+          if [ "${{ steps.telemetry.outputs.found }}" = "true" ]; then
+            LABELS="${LABELS},needs-telemetry-cleanup"
+          fi
+
+          # Ensure labels exist (create if missing)
+          for label in upstream-sync automated needs-telemetry-cleanup; do
+            gh label create "$label" --force 2>/dev/null || true
+          done
+
+          TELEMETRY_STATUS="CLEAN"
+          if [ "${{ steps.telemetry.outputs.found }}" = "true" ]; then
+            TELEMETRY_STATUS="WARNING -- telemetry code detected, needs cleanup"
+          fi
+
+          cat > /tmp/pr-body.md <<EOF
+          ## Upstream Sync
+
+          Merging **${{ steps.compare.outputs.count }}** new commit(s) from [\`garrytan/gstack\`](https://github.com/garrytan/gstack) into jstack.
+
+          ### Upstream commits
+
+          \`\`\`
+          ${{ steps.commits.outputs.log }}
+          \`\`\`
+
+          ### Conflict resolution report
+
+          \`\`\`
+          ${{ steps.resolve.outputs.report }}
+          \`\`\`
+
+          ### Telemetry check: ${TELEMETRY_STATUS}
+
+          ### Checklist
+
+          - [ ] All gstack -> jstack renames preserved
+          - [ ] No telemetry/supabase code leaked in
+          - [ ] \`bun test\` passes
+          - [ ] Manual review of any files flagged as "needs human review"
+
+          ---
+          *Automated by upstream-sync workflow*
+          EOF
+
+          gh pr create \
+            --title "chore(upstream): merge gstack changes ($(date +%Y-%m-%d))" \
+            --label "$LABELS" \
+            --body-file /tmp/pr-body.md
+
+      - name: Dry run summary
+        if: steps.compare.outputs.skip == 'false' && inputs.dry_run == true
+        run: |
+          echo "============================================"
+          echo "DRY RUN — no branch pushed, no PR created"
+          echo "============================================"
+          echo ""
+          echo "Would create branch: ${{ steps.branch.outputs.name }}"
+          echo "Upstream commits to merge: ${{ steps.compare.outputs.count }}"
+          echo ""
+          echo "Commit log:"
+          echo "${{ steps.commits.outputs.log }}"
+          echo ""
+          echo "Resolution report:"
+          echo "${{ steps.resolve.outputs.report }}"
+          echo ""
+          echo "Telemetry detected: ${{ steps.telemetry.outputs.found }}"
