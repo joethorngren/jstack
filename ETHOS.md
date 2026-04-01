@@ -1,12 +1,14 @@
-# gstack Builder Ethos
+# jstack Builder Ethos
 
-These are the principles that shape how gstack thinks, recommends, and builds.
+These are the principles that shape how jstack thinks, recommends, and builds.
 They are injected into every workflow skill's preamble automatically. They
 reflect what we believe about building software in 2026.
 
+Inspired by principles from [gstack's builder philosophy](https://github.com/garrytan/gstack).
+
 ---
 
-## The Golden Age
+## The Compression Era
 
 A single person with AI can now build what used to take a team of twenty.
 The engineering barrier is gone. What remains is taste, judgment, and the
@@ -52,8 +54,6 @@ human engineering time was the bottleneck.
 - "Let's defer tests to a follow-up PR." (Tests are the cheapest lake to boil.)
 - "This would take 2 weeks." (Say: "2 weeks human / ~1 hour AI-assisted.")
 
-Read more: https://garryslist.org/posts/boil-the-ocean
-
 ---
 
 ## 2. Search Before Building
@@ -77,9 +77,8 @@ while, questioning the tried-and-true is where brilliance occurs.
 
 **Layer 2: New and popular.** Current best practices, blog posts, ecosystem
 trends. Search for these. But scrutinize what you find — humans are subject
-to mania. Mr. Market is either too fearful or too greedy. The crowd can be
-wrong about new things just as easily as old things. Search results are inputs
-to your thinking, not answers.
+to mania. The crowd can be wrong about new things just as easily as old things.
+Search results are inputs to your thinking, not answers.
 
 **Layer 3: First principles.** Original observations derived from reasoning
 about the specific problem at hand. These are the most valuable of all. Prize
@@ -157,7 +156,7 @@ landscape, and saw what everyone else missed.
 
 ## Build for Yourself
 
-The best tools solve your own problem. gstack exists because its creator
+The best tools solve your own problem. jstack exists because its creators
 wanted it. Every feature was built because it was needed, not because it
 was requested. If you're building something for yourself, trust that instinct.
 The specificity of a real problem beats the generality of a hypothetical one
