@@ -790,6 +790,28 @@ Shipped in v0.6.5. TemplateContext in gen-skill-docs.ts bakes skill name into pr
 **Priority:** P3
 **Depends on:** --host factory
 
+## Someday / Maybe
+
+### Convex sync layer for learnings + prompt collection
+
+**What:** Add an optional Convex backend that syncs the local learnings system (JSONL) to a cloud database. Enables cross-machine sync, collaborator sharing ("running mate" pattern), and aggregation across projects. Long-term: prompt/usage data could inform model fine-tuning (similar to how Cursor uses interaction data).
+
+**Why:** The learnings system is powerful but local-only. When working across machines or with a collaborator, there's no way to share operational context. Convex is real-time, good DX, and reactive queries make it natural for this use case.
+
+**Architecture:** This belongs in company-specific forks (e.g., `arity-stack`), NOT in jstack core. jstack's brand is "zero telemetry, nothing leaves your machine." Adding a cloud database — even opt-in — muddies that message. The `jstack init --company` fork template is the right place: company forks can add whatever infrastructure they want.
+
+**Scope:**
+- Convex schema for learnings (skill, type, key, insight, confidence, source)
+- Optional sync adapter in jstack-learnings-log / jstack-learnings-search
+- Prompt collection (opt-in, company fork only) for future fine-tuning data
+- Privacy: never in jstack core, never default-on, always company-fork scoped
+
+**Effort:** M
+**Priority:** P3 (someday/maybe)
+**Depends on:** `jstack init --company` (Sprint 3), Convex account setup
+
+---
+
 ## Completed
 
 ### CI eval pipeline (v0.9.9.0)
