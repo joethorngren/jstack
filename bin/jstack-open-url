@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# gstack-open-url — cross-platform URL opener
+# jstack-open-url — cross-platform URL opener
 #
-# Usage: gstack-open-url <url>
+# Usage: jstack-open-url <url>
 set -euo pipefail
 
-URL="${1:?Usage: gstack-open-url <url>}"
+URL="${1:?Usage: jstack-open-url <url>}"
 
 case "$(uname -s)" in
   Darwin)  open "$URL" ;;
