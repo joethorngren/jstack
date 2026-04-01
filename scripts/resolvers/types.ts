@@ -1,4 +1,4 @@
-export type Host = 'claude' | 'codex' | 'factory';
+export type Host = 'claude' | 'codex' | 'factory' | 'cursor';
 
 export interface HostPaths {
   skillRoot: string;
@@ -29,6 +29,13 @@ export const HOST_PATHS: Record<Host, HostPaths> = {
     binDir: '$JSTACK_BIN',
     browseDir: '$JSTACK_BROWSE',
     designDir: '$JSTACK_DESIGN',
+  },
+  cursor: {
+    skillRoot: '.cursor/rules',
+    localSkillRoot: '.cursor/rules',
+    binDir: '',     // N/A — Cursor uses MCP, not direct binary calls
+    browseDir: '',  // N/A — browse exposed via MCP server
+    designDir: '',  // N/A
   },
 };
 

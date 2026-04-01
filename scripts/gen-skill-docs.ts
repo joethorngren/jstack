@@ -32,9 +32,10 @@ const HOST_ARG_VAL: HostArg = (() => {
   const val = HOST_ARG.includes('=') ? HOST_ARG.split('=')[1] : process.argv[process.argv.indexOf(HOST_ARG) + 1];
   if (val === 'codex' || val === 'agents') return 'codex';
   if (val === 'factory' || val === 'droid') return 'factory';
+  if (val === 'cursor') return 'cursor';
   if (val === 'claude') return 'claude';
   if (val === 'all') return 'all';
-  throw new Error(`Unknown host: ${val}. Use claude, codex, factory, droid, agents, or all.`);
+  throw new Error(`Unknown host: ${val}. Use claude, codex, factory, cursor, droid, agents, or all.`);
 })();
 
 // For single-host mode, HOST is the host. For --host all, it's set per iteration below.
@@ -244,6 +245,125 @@ const EXTERNAL_HOST_CONFIG: Record<string, ExternalHostConfig> = {
   factory: { hostSubdir: '.factory', generateMetadata: false },
 };
 
+// Skills that are too Claude Code-specific for Cursor (no .mdc generated)
+const CURSOR_SKIP_SKILLS = new Set(['codex', 'connect-chrome', 'autoplan']);
+
+// Maximum line count for .mdc files (Cursor's "rule ignorance" threshold)
+const CURSOR_MDC_MAX_LINES = 500;
+
+/**
+ * Condense a fully-resolved SKILL.md into a Cursor .mdc file.
+ *
+ * Strategy:
+ * - Replace SKILL.md frontmatter with .mdc frontmatter (description, globs, alwaysApply)
+ * - Strip preamble bash blocks (Cursor doesn't execute shell setup)
+ * - Strip browse binary resolution sections ($B = ...)
+ * - Strip analytics/telemetry logging blocks
+ * - Replace Claude Code tool references with generic phrasing
+ * - Replace $B commands with MCP tool references
+ * - Keep core workflow, decision logic, and tables
+ */
+function condenseToCursorMdc(content: string, skillName: string, description: string): string {
+  // Extract body (after frontmatter)
+  const fmEnd = content.indexOf('\n---', content.indexOf('---') + 3);
+  let body = fmEnd !== -1 ? content.slice(content.indexOf('\n', fmEnd) + 1) : content;
+
+  // Strip generated header comments
+  body = body.replace(/<!-- AUTO-GENERATED.*?-->\n?/g, '');
+  body = body.replace(/<!-- Regenerate:.*?-->\n?/g, '');
+
+  // Strip stray frontmatter delimiters left at the top of the body
+  body = body.replace(/^\s*---\s*\n/g, '');
+
+  // Strip preamble sections (large bash blocks for session tracking, version checks, etc.)
+  // These are typically between "## Preamble" or "## Step 0" and the next ##
+  body = body.replace(/## (?:Preamble|Step 0)[^\n]*\n[\s\S]*?(?=\n## |\n# )/g, '');
+
+  // Strip bash code blocks that do setup (find-browse, analytics, learnings search, slug eval, version check, session tracking)
+  body = body.replace(/```bash\n(?:[\s\S]*?(?:find-browse|BROWSE=|_VER=|_BRANCH=|_SESSION_ID=|_TEL_START=|_PROACTIVE=|_SKILL_PREFIX=|analytics|skill-usage|learnings-search|jstack-slug|jstack-repo-mode|jstack-learnings|jstack-timeline|jstack-review-log|jstack-config|mkdir -p ~\/\.jstack|\.jstack\/analytics|VERSION:)[\s\S]*?)```\n?/g, '');
+
+  // Strip remaining empty bash blocks
+  body = body.replace(/```bash\n\s*```\n?/g, '');
+
+  // Strip "proactive" config paragraphs (Claude Code specific)
+  body = body.replace(/If `PROACTIVE`[\s\S]*?(?=\n## |\n# |$)/g, '');
+
+  // Strip "Browse Setup" sections entirely (binary resolution, not needed with MCP)
+  body = body.replace(/## (?:Browse Setup|Setup: Browse Binary)[^\n]*\n[\s\S]*?(?=\n## |\n# |$)/g, '');
+
+  // Replace $B command references with MCP tool references
+  body = body.replace(/\$B\s+goto\b/g, 'browse_goto MCP tool');
+  body = body.replace(/\$B\s+click\b/g, 'browse_click MCP tool');
+  body = body.replace(/\$B\s+type\b/g, 'browse_type MCP tool');
+  body = body.replace(/\$B\s+fill\b/g, 'browse_fill MCP tool');
+  body = body.replace(/\$B\s+screenshot\b/g, 'browse_screenshot MCP tool');
+  body = body.replace(/\$B\s+snapshot\b/g, 'browse_snapshot MCP tool');
+  body = body.replace(/\$B\s+is\b/g, 'browse_assert MCP tool');
+  body = body.replace(/\$B\s+wait\b/g, 'browse_wait MCP tool');
+  body = body.replace(/\$B\s+scroll\b/g, 'browse_scroll MCP tool');
+  body = body.replace(/\$B\s+press\b/g, 'browse_press MCP tool');
+  body = body.replace(/\$B\s+(\w+)/g, 'browse $1 command');
+
+  // Replace Claude Code tool references with generic phrasing
+  body = body.replace(/use the Bash tool/g, 'run this command');
+  body = body.replace(/use the Write tool/g, 'create this file');
+  body = body.replace(/use the Read tool/g, 'read the file');
+  body = body.replace(/use the Agent tool/g, 'dispatch a subagent');
+  body = body.replace(/use the Grep tool/g, 'search for');
+  body = body.replace(/use the Glob tool/g, 'find files matching');
+
+  // Replace Claude Code skill paths with Cursor-appropriate references
+  body = body.replace(/~\/\.claude\/skills\/jstack/g, '.cursor/rules');
+  body = body.replace(/\.claude\/skills\/jstack/g, '.cursor/rules');
+
+  // Collapse runs of 3+ blank lines to 2
+  body = body.replace(/\n{4,}/g, '\n\n\n');
+
+  // Build .mdc frontmatter
+  const shortDesc = description.split(/\n\s*\n/)[0]?.replace(/\s+/g, ' ').trim() || skillName;
+  const mdcContent = `---
+description: ${shortDesc}
+globs:
+alwaysApply: false
+---
+
+${body.trim()}
+`;
+
+  // Warn if over the line limit
+  const lineCount = mdcContent.split('\n').length;
+  if (lineCount > CURSOR_MDC_MAX_LINES) {
+    console.warn(`  WARNING: ${skillName}.mdc is ${lineCount} lines (max ${CURSOR_MDC_MAX_LINES})`);
+  }
+
+  return mdcContent;
+}
+
+/**
+ * Process a template for Cursor host: condense to .mdc format.
+ */
+function processCursorHost(
+  content: string,
+  skillDir: string,
+  extractedDescription: string,
+  frontmatterName?: string,
+): { content: string; outputPath: string; skip: boolean } {
+  const name = externalSkillName(skillDir === '.' ? '' : skillDir, frontmatterName);
+
+  // Check skip list
+  const baseName = skillDir === '.' ? '' : skillDir;
+  if (CURSOR_SKIP_SKILLS.has(baseName)) {
+    return { content: '', outputPath: '', skip: true };
+  }
+
+  const outputDir = path.join(ROOT, '.cursor', 'rules');
+  fs.mkdirSync(outputDir, { recursive: true });
+  const outputPath = path.join(outputDir, `${name}.mdc`);
+
+  const mdcContent = condenseToCursorMdc(content, name, extractedDescription);
+  return { content: mdcContent, outputPath, skip: false };
+}
+
 // ─── Template Processing ────────────────────────────────────
 
 const GENERATED_HEADER = `<!-- AUTO-GENERATED from {{SOURCE}} — do not edit directly -->\n<!-- Regenerate: bun run gen:skill-docs -->\n`;
@@ -365,10 +485,16 @@ function processTemplate(tmplPath: string, host: Host = 'claude'): { outputPath:
   }
 
   // For Claude: strip sensitive: field (only Factory uses it)
+  // For Cursor: condense to .mdc format
   // For external hosts: route output, transform frontmatter, rewrite paths
   let symlinkLoop = false;
   if (host === 'claude') {
     content = transformFrontmatter(content, host);
+  } else if (host === 'cursor') {
+    const result = processCursorHost(content, skillDir, extractedDescription, extractedName || undefined);
+    if (result.skip) return { outputPath: '', content: '', symlinkLoop: false };
+    content = result.content;
+    outputPath = result.outputPath;
   } else {
     const result = processExternalHost(content, tmplContent, host, skillDir, extractedDescription, ctx, extractedName || undefined);
     content = result.content;
@@ -395,7 +521,7 @@ function findTemplates(): string[] {
   return discoverTemplates(ROOT).map(t => path.join(ROOT, t.tmpl));
 }
 
-const ALL_HOSTS: Host[] = ['claude', 'codex', 'factory'];
+const ALL_HOSTS: Host[] = ['claude', 'codex', 'factory', 'cursor'];
 const hostsToRun: Host[] = HOST_ARG_VAL === 'all' ? ALL_HOSTS : [HOST];
 const failures: { host: string; error: Error }[] = [];
 
@@ -414,6 +540,10 @@ for (const currentHost of hostsToRun) {
       }
 
       const { outputPath, content, symlinkLoop } = processTemplate(tmplPath, currentHost);
+
+      // Skip: cursor host skipped this skill (e.g., codex, connect-chrome)
+      if (!outputPath && !content) continue;
+
       const relOutput = path.relative(ROOT, outputPath);
 
       if (symlinkLoop) {

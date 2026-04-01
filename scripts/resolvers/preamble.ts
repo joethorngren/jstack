@@ -582,6 +582,9 @@ available]. [Health score if available]." Keep it to 2-3 sentences.`;
 //   T3: autoplan, codex, design-consult, brainstorm, ceo/design/eng-review
 //   T4: ship, review, qa, qa-only, design-review, land-deploy
 export function generatePreamble(ctx: TemplateContext): string {
+  // Cursor doesn't need preamble (no shell setup, no session tracking, no version checks)
+  if (ctx.host === 'cursor') return '';
+
   const tier = ctx.preambleTier ?? 4;
   if (tier < 1 || tier > 4) {
     throw new Error(`Invalid preamble-tier: ${tier} in ${ctx.tmplPath}. Must be 1-4.`);
