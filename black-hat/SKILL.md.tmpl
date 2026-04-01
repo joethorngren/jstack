@@ -8,7 +8,7 @@ description: |
   for SQL injection, auth bypass, IDOR, XSS, secrets archaeology, dependency
   CVEs, and privilege escalation. All analysis is local and defensive.
   Use when: "pentest", "hack this", "find vulnerabilities", "black hat review",
-  "adversarial security", "try to break this", "security deep dive". (gstack)
+  "adversarial security", "try to break this", "security deep dive". (jstack)
 allowed-tools:
   - Bash
   - Read
@@ -429,10 +429,10 @@ D) Defer — add to TODOS.md with security label
 ### Phase 6: Save Report
 
 ```bash
-mkdir -p .gstack/security-reports
+mkdir -p .jstack/security-reports
 ```
 
-Write findings to `.gstack/security-reports/{date}-{HHMMSS}-blackhat.json` using this schema:
+Write findings to `.jstack/security-reports/{date}-{HHMMSS}-blackhat.json` using this schema:
 
 ```json
 {
@@ -489,7 +489,7 @@ Write findings to `.gstack/security-reports/{date}-{HHMMSS}-blackhat.json` using
 }
 ```
 
-If `.gstack/` is not in `.gitignore`, note it in findings — security reports should stay local.
+If `.jstack/` is not in `.gitignore`, note it in findings — security reports should stay local.
 
 {{LEARNINGS_LOG}}
 
