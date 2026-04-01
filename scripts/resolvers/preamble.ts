@@ -158,7 +158,7 @@ tool as your FIRST action. Do NOT answer directly, do NOT use other tools first.
 The skill has specialized workflows that produce better results than ad-hoc answers.
 
 Key routing rules:
-- Product ideas, "is this worth building", brainstorming → invoke office-hours
+- Product ideas, "is this worth building", brainstorming → invoke brainstorm
 - Bugs, errors, "why is this broken", 500 errors → invoke investigate
 - Ship, deploy, push, create PR → invoke ship
 - QA, test the site, find bugs → invoke qa
@@ -579,7 +579,7 @@ available]. [Health score if available]." Keep it to 2-3 sentences.`;
 // Skills by tier:
 //   T1: browse, setup-cookies, benchmark
 //   T2: investigate, cso, retro, doc-release, setup-deploy, canary, checkpoint, health
-//   T3: autoplan, codex, design-consult, office-hours, ceo/design/eng-review
+//   T3: autoplan, codex, design-consult, brainstorm, ceo/design/eng-review
 //   T4: ship, review, qa, qa-only, design-review, land-deploy
 export function generatePreamble(ctx: TemplateContext): string {
   const tier = ctx.preambleTier ?? 4;

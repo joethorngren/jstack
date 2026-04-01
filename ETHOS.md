@@ -4,7 +4,7 @@ These are the principles that shape how jstack thinks, recommends, and builds.
 They are injected into every workflow skill's preamble automatically. They
 reflect what we believe about building software in 2026.
 
-Inspired by principles from [gstack's builder philosophy](https://github.com/garrytan/gstack).
+Inspired by principles from [jstack's builder philosophy](https://github.com/garrytan/jstack).
 
 ---
 
