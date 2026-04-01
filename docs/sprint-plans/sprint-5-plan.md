@@ -37,13 +37,18 @@ Cursor-only users.
 | JS-050 | End-to-End Testing | L | All 38 skills load without error; browse daemon starts and responds in both CC and Cursor; /war-room runs with 2+ models; `jstack init --company test-co` produces a working fork; /brainstorm completes without YC references |
 | CF-01 | Medium Code Review Findings | S | 6 medium findings from Sprint 4 review addressed; no new findings introduced |
 
-### Launch Track
+### Release Track
 
 | ID | Title | Size | AC |
 |----|-------|------|----|
-| JS-051 | Record Demo Video | M | Screen recording <3 minutes showing: install jstack in Cursor, run /qa on a sample project, browse daemon finding real bugs, /war-room multi-model consensus, agent roster; hosted on a shareable URL |
-| JS-052 | Cursor User Group Post | M | Post written in jstack's warm/electric-blue tone; includes: what it is, why it exists, install instructions, demo video link, GitHub repo link; reviewed before posting |
 | JS-053 | Tag v0.1.0 Release | S | `git tag v0.1.0`; GitHub release with notes covering Sprints 0-5; CHANGELOG updated; VERSION bumped; clean working tree |
+
+### Deferred to Final Sprint (post-implementation)
+
+| ID | Title | Size | AC |
+|----|-------|------|----|
+| JS-051 | Record Demo Video | M | Screen recording <3 minutes; hosted on a shareable URL |
+| JS-052 | Cursor User Group Post | M | Post to Arity MS Teams; includes install instructions + demo video |
 
 ---
 
