@@ -327,9 +327,225 @@ Each sprint is designed to be completable in a single CC session (2-4 hours).
 
 ---
 
-## Sprint Dependency Graph
+---
+
+# v1.5 Sprints — Research, Skinning, Marketplace
+
+---
+
+## Sprint 6: Research MCP Server + /research Skill
+
+**Goal:** Cross-project research discovery. Any agent in any IDE can find and use prior research.
+
+### Tickets
+
+**JS-060: Build jstack-research MCP Server**
+- stdio MCP server (same pattern as jstack-browse) with 4 tools:
+  - `research_search` — keyword/tag search across the registry
+  - `research_read` — read a research file by reference (cross-project)
+  - `research_list` — browse by tag, project, or date
+  - `research_create` — register a new research file in the index
+- Registry: `~/.jstack/research-index.jsonl` (append-only, latest-wins dedup by path)
+- Each entry: `{ path, project, tags[], title, date, summary, format }`
+
+**JS-061: Build /research Skill**
+- Template for structured teardowns following Joe's existing Research/CLAUDE.md pattern:
+  1. Spin up 3 deep-researcher agents in parallel (product deep-dive, competitive landscape, domain expertise)
+  2. Each agent saves a report in `docs/research/{topic}/`
+  3. Synthesis agent reads all reports, produces README.md with TL;DR decision matrix
+  4. Cross-reference: add `## Related Research` section with bidirectional links
+- Output format: Obsidian-compatible (YAML frontmatter with tags, `[[wiki-links]]`)
+- Auto-registers in jstack-research MCP server registry
+
+**JS-062: Integrate Research into /brainstorm**
+- Before CEO review, `/brainstorm` checks research registry for relevant prior work
+- Surfaces: "Found 3 related research files across 2 projects" with summaries
+- User can pull them into the current project or just reference them
+
+**JS-063: Add jstack-research to Cursor Setup**
+- Add to `.cursor/mcp.json` during `setup --cursor`
+- Add to MCP marketplace manifest (prerequisite for Sprint 8)
+
+### Exit Criteria
+- [ ] `research_search "spaced repetition"` returns results from any project
+- [ ] `/research teardown "Duolingo"` produces structured output in docs/research/
+- [ ] Research files are Obsidian-compatible (open in Obsidian, links work)
+- [ ] `/brainstorm` surfaces relevant prior research automatically
+
+---
+
+## Sprint 7: Agentic Org Skinning
+
+**Goal:** `jstack init --company` becomes a guided, agentic onboarding experience.
+
+### Tickets
+
+**JS-070: Org Context Folder Structure**
+- Define `docs/org/` as the host-agnostic home for company context
+- Template files: `overview.md`, `tech-stack.md`, `products.md`, `brand.md`, `culture.md`, `legal.md`
+- Each file: short, single-purpose, YAML frontmatter with tags
+- gen-skill-docs translates `docs/org/` → host-specific format (.mdc rules, AGENTS.md sections)
+- Test: generate .mdc rules from Arity's existing research as proof of concept
+
+**JS-071: Agentic Company Discovery**
+- During `jstack init --company <name>`:
+  1. Web search for company name → find website, LinkedIn, Glassdoor
+  2. Browse company website (via browse MCP) → extract brand colors, logo, typography
+  3. Deduce: tech stack (from job postings), products (from product pages), culture (from about page)
+  4. Present findings: "Here's what we found about {company}"
+  5. Ask: "Do you have an existing design system?" → validate against web findings
+- Output: populated `docs/org/` folder with discovered context
+
+**JS-072: Import Existing Assets**
+- `jstack init --company --import ~/Research/arity-company-research/`
+- Reads existing research files, reformats to `docs/org/` structure
+- Registers in research MCP server index
+- Handles: markdown files, component library docs, design system docs
+
+**JS-073: Guided Creation for New Orgs**
+- If no existing assets: walk through creating each `docs/org/` file interactively
+- "Tell me about your company" → generates `overview.md`
+- "What's your tech stack?" → generates `tech-stack.md`
+- "Do you have brand guidelines?" → if no, runs /design-consultation
+- Result: complete `docs/org/` folder from a conversation
+
+### Exit Criteria
+- [ ] `jstack init --company arity` produces a fork with populated `docs/org/`
+- [ ] Web discovery finds Arity's brand colors, products, and tech stack
+- [ ] Import flow handles Joe's existing 20+ Arity research files
+- [ ] New-org flow creates `docs/org/` from interactive Q&A
+
+---
+
+## Sprint 8: MCP Marketplace + Arity Deployment
+
+**Goal:** First real org deployment. Plugin system for MCP servers.
+
+### Tickets
+
+**JS-080: MCP Marketplace Registry**
+- `~/.jstack/marketplace.yaml` — registry of available MCP servers
+- Each entry: name, description, command, args, tool_count, category, enabled
+- Built-in servers: jstack-browse (10 tools), jstack-research (4 tools)
+- Org servers: added during `jstack init --company`
+
+**JS-081: MCP CLI Commands**
+- `jstack mcp list` — show all available servers with tool counts
+- `jstack mcp add <name>` — add server to current project's `.cursor/mcp.json`
+- `jstack mcp remove <name>` — remove server
+- `jstack mcp budget` — show tool usage: "14/40 tools active"
+- Warning when approaching Cursor's ~40 tool limit
+
+**JS-082: Setup Picker UI**
+- During `jstack setup --cursor`, present a checkbox picker:
+  ```
+  Available MCP servers:
+    [x] jstack-browse    (10 tools)  headless browser
+    [x] jstack-research   (4 tools)  cross-project research
+    [ ] gmail              (5 tools)  Gmail automation
+    Tool budget: 14/40
+  ```
+- Writes selected servers to `.cursor/mcp.json`
+
+**JS-083: Arity Fork — First Real Deployment**
+- Run `jstack init --company arity` end-to-end
+- Import all existing Arity research (3 repos, 20+ files)
+- Validate: agents know Arity's business, tech stack, brand, legal landscape
+- Test: spin up a new project within the Arity fork, verify org context loads
+- Document: what worked, what didn't, what to improve
+
+**JS-084: Arity-Specific MCP Servers**
+- Identify which of Joe's existing MCP servers should be in the Arity marketplace
+- Create manifests for each (name, tool count, install command)
+- Test: `jstack mcp add <arity-server>` works in Cursor
+
+### Exit Criteria
+- [ ] `jstack mcp list` shows available servers with tool counts
+- [ ] `jstack mcp budget` tracks usage against Cursor's limit
+- [ ] Arity fork exists with populated `docs/org/` and marketplace
+- [ ] At least 1 Arity-specific MCP server in the marketplace
+
+---
+
+## Sprint 9: Testing Opinions + Model Agnosticism
+
+**Goal:** jstack has strong opinions about testing. Multi-model support is first-class.
+
+### Tickets
+
+**JS-090: Opinionated Testing Framework**
+- Expand /testing-philosophy from "principles" to "enforcement"
+- Integration tests > unit tests (real DB, not mocks)
+- 80% coverage minimum gate in /review and /ship
+- Test behavior, not implementation
+- Auto-detect test runner from project config (jest, vitest, pytest, go test)
+
+**JS-091: Model-Agnostic Skill Architecture**
+- Audit all skills for Claude Code-specific assumptions
+- Ensure every skill works in Cursor (via .mdc) and Codex (via AGENTS.md)
+- Document: "which skills work in which hosts" matrix
+- Goal: 100% of core workflow skills work in Cursor-only mode
+
+**JS-092: Gemini CLI Integration**
+- Add Gemini as a first-class host (like codex, factory)
+- gen-skill-docs emits Gemini-compatible format
+- /war-room and /legal-audit use all three models when available
+- Graceful degradation: works with any 1 of 3
+
+**JS-093: Multi-Model Research**
+- /research skill uses multiple models for teardowns (not just Claude)
+- Each model agent covers a different angle (same pattern as /war-room)
+- Synthesis combines findings with consensus scoring
+
+### Exit Criteria
+- [ ] /review enforces 80% coverage gate
+- [ ] All core skills work in Cursor-only mode
+- [ ] /war-room works with any combination of available models
+- [ ] /research uses multi-model teardown when models are available
+
+---
+
+## Sprint 10: Polish + Ship v1.5
+
+**Goal:** Tag v1.5.0, share with Arity team.
+
+### Tickets
+
+**JS-100: End-to-End Regression**
+- All v0.1.0 skills still work
+- Research MCP server functional
+- Org skinning works for fresh and existing companies
+- MCP marketplace picks servers correctly
+- Arity fork is production-quality
+
+**JS-101: Arity Onboarding Guide**
+- Step-by-step for Arity developers (Cursor-only)
+- Install jstack, setup Cursor, pick MCP servers
+- "Your first /qa session" walkthrough
+- "Your first /research teardown" walkthrough
+
+**JS-102: Demo + Share**
+- Updated demo video showing research + org skinning
+- Share with Arity Cursor User Group
+- Collect feedback
+
+**JS-103: Tag v1.5.0**
+- GitHub release
+- CHANGELOG update
+- Upstream sync: ensure gstack changes are merged
+
+### Exit Criteria
+- [ ] v1.5.0 tagged
+- [ ] Arity team using jstack in Cursor
+- [ ] Feedback collected and triaged for v2.0
+
+---
+
+## Full Sprint Dependency Graph
 
 ```
+v0.1.0 Track
+═══════════
 Sprint 0 (Research)
     │
     ├──► Sprint 1 (Rename + Nuke)
@@ -340,12 +556,30 @@ Sprint 0 (Research)
     │        │                 │
     │        └─────────────────┤
     │                          │
-    │                    Sprint 4 (Cursor + Design)
+    │                    Sprint 4 (Cursor + Design) ✓
     │                          │
-    │                    Sprint 5 (Polish + Ship)
+    │                    Sprint 5 (Polish + Ship v0.1.0)
     │
     └──► Sprint 4 (Cursor research feeds directly into integration)
+
+v1.5 Track
+══════════
+Sprint 5 (Ship v0.1.0)
+    │
+    ├──► Sprint 6 (Research MCP + /research)
+    │        │
+    │        └──► Sprint 7 (Agentic Org Skinning)
+    │                 │
+    │                 └──► Sprint 8 (Marketplace + Arity Deploy)
+    │
+    ├──► Sprint 9 (Testing + Model Agnosticism)  ←── independent track
+    │
+    └──► Sprint 10 (Polish + Ship v1.5)
 ```
+
+Sprints 6-7-8 are a dependency chain (research → skinning → marketplace).
+Sprint 9 is independent and can overlap with 7 or 8.
+Sprint 10 waits for everything.
 
 Sprint 0 unblocks everything. Sprints 2 and 3 can partially overlap.
 Sprint 4 depends on both Sprint 1 (working rename) and Sprint 0 (Cursor research).
