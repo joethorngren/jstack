@@ -129,7 +129,7 @@ jobs:
       - name: Commit the merge
         if: steps.compare.outputs.skip == 'false'
         run: |
-          git add -A
+          git add -u
           git commit -m "chore(upstream): merge gstack changes ($(date +%Y-%m-%d))" --allow-empty || true
 
       - name: Generate upstream commit log
@@ -166,35 +166,37 @@ jobs:
             TELEMETRY_STATUS="WARNING -- telemetry code detected, needs cleanup"
           fi
 
-          cat > /tmp/pr-body.md <<EOF
-          ## Upstream Sync
-
-          Merging **${{ steps.compare.outputs.count }}** new commit(s) from [\`garrytan/gstack\`](https://github.com/garrytan/gstack) into jstack.
-
-          ### Upstream commits
-
-          \`\`\`
-          ${{ steps.commits.outputs.log }}
-          \`\`\`
-
-          ### Conflict resolution report
-
-          \`\`\`
-          ${{ steps.resolve.outputs.report }}
-          \`\`\`
-
-          ### Telemetry check: ${TELEMETRY_STATUS}
-
-          ### Checklist
-
-          - [ ] All gstack -> jstack renames preserved
-          - [ ] No telemetry/supabase code leaked in
-          - [ ] \`bun test\` passes
-          - [ ] Manual review of any files flagged as "needs human review"
-
-          ---
-          *Automated by upstream-sync workflow*
-          EOF
+          # Build PR body safely — no heredoc with untrusted content
+          # (upstream commit messages could contain heredoc delimiters)
+          {
+            echo "## Upstream Sync"
+            echo ""
+            echo "Merging **${{ steps.compare.outputs.count }}** new commit(s) from [\`garrytan/gstack\`](https://github.com/garrytan/gstack) into jstack."
+            echo ""
+            echo "### Upstream commits"
+            echo ""
+            echo '```'
+            echo "${{ steps.commits.outputs.log }}" | head -50
+            echo '```'
+            echo ""
+            echo "### Conflict resolution report"
+            echo ""
+            echo '```'
+            echo "${{ steps.resolve.outputs.report }}" | head -50
+            echo '```'
+            echo ""
+            echo "### Telemetry check: ${TELEMETRY_STATUS}"
+            echo ""
+            echo "### Checklist"
+            echo ""
+            echo "- [ ] All gstack -> jstack renames preserved"
+            echo "- [ ] No telemetry/supabase code leaked in"
+            echo "- [ ] \`bun test\` passes"
+            echo "- [ ] Manual review of any files flagged as 'needs human review'"
+            echo ""
+            echo "---"
+            echo "*Automated by upstream-sync workflow*"
+          } > /tmp/pr-body.md
 
           gh pr create \
             --title "chore(upstream): merge gstack changes ($(date +%Y-%m-%d))" \

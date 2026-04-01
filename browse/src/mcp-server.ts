@@ -60,8 +60,11 @@ async function isServerHealthy(port: number): Promise<boolean> {
 
 function resolveServerScript(): string {
   if (process.env.BROWSE_SERVER_SCRIPT) return process.env.BROWSE_SERVER_SCRIPT;
-  const direct = path.resolve(import.meta.dir, 'server.ts');
-  if (fs.existsSync(direct)) return direct;
+  // Guard against $bunfs virtual filesystem in compiled binaries
+  if (!import.meta.dir.includes('$bunfs')) {
+    const direct = path.resolve(import.meta.dir, 'server.ts');
+    if (fs.existsSync(direct)) return direct;
+  }
   const adjacent = path.resolve(path.dirname(process.execPath), '..', 'src', 'server.ts');
   if (fs.existsSync(adjacent)) return adjacent;
   throw new Error('Cannot find server.ts');
@@ -95,31 +98,55 @@ async function ensureServer(): Promise<ServerState> {
 
 // ─── Command Dispatch ───────────────────────────────────────────
 
-async function dispatchCommand(command: string, args: string[]): Promise<string> {
+async function dispatchCommand(command: string, args: string[], retries = 0): Promise<string> {
   const state = await ensureServer();
-  const resp = await fetch(`http://127.0.0.1:${state.port}/command`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${state.token}`,
-    },
-    body: JSON.stringify({ command, args }),
-    signal: AbortSignal.timeout(30000),
-  });
 
-  const text = await resp.text();
+  try {
+    const resp = await fetch(`http://127.0.0.1:${state.port}/command`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${state.token}`,
+      },
+      body: JSON.stringify({ command, args }),
+      signal: AbortSignal.timeout(30000),
+    });
 
-  if (!resp.ok) {
-    try {
-      const err = JSON.parse(text);
-      throw new Error(err.error || text);
-    } catch (e) {
-      if (e instanceof SyntaxError) throw new Error(text);
-      throw e;
+    // Token mismatch — server may have restarted with a new token
+    if (resp.status === 401) {
+      const newState = readState();
+      if (newState && newState.token !== state.token) {
+        return dispatchCommand(command, args, retries);
+      }
+      throw new Error('Authentication failed');
     }
-  }
 
-  return text;
+    const text = await resp.text();
+
+    if (!resp.ok) {
+      try {
+        const err = JSON.parse(text);
+        throw new Error(err.error || text);
+      } catch (e) {
+        if (e instanceof SyntaxError) throw new Error(text);
+        throw e;
+      }
+    }
+
+    return text;
+  } catch (err: any) {
+    if (err.name === 'AbortError') {
+      throw new Error(`Command '${command}' timed out after 30s`);
+    }
+    // Connection lost — server may have crashed or timed out
+    if (err.code === 'ECONNREFUSED' || err.code === 'ECONNRESET' || err.message?.includes('fetch failed')) {
+      if (retries >= 1) throw new Error('Browse daemon crashed twice — aborting');
+      // Restart the daemon and retry once
+      const newState = await startServer();
+      return dispatchCommand(command, args, retries + 1);
+    }
+    throw err;
+  }
 }
 
 // ─── MCP Server ─────────────────────────────────────────────────
