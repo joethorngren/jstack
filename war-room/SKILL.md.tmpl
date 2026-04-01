@@ -1,0 +1,345 @@
+---
+name: war-room
+preamble-tier: 2
+version: 1.0.0
+description: |
+  Multi-model code review war room. Spawns parallel reviews across Claude, Codex,
+  and Gemini, then synthesizes a consensus report. Confirmed findings (2+ models)
+  are high-confidence. Unique finds are high-value surprises. Graceful degradation
+  if a model CLI is unavailable. The "second opinion" for every PR.
+  Use when: "war room", "multi-model review", "second opinion", "consensus review",
+  "three-model review", "war room this PR". (jstack)
+allowed-tools:
+  - Bash
+  - Read
+  - Grep
+  - Glob
+  - Write
+  - Agent
+  - AskUserQuestion
+---
+
+{{PREAMBLE}}
+
+{{BASE_BRANCH_DETECT}}
+
+# /war-room -- Multi-Model Consensus Code Review
+
+You are running the `/war-room` workflow. This spawns independent code reviews across
+up to 3 AI models (Claude, Codex, Gemini), then deduplicates and synthesizes a
+consensus report. Findings confirmed by 2+ models are high-confidence. Unique findings
+from a single model are flagged as high-value surprises worth investigating.
+
+---
+
+## Step 0: Check model availability
+
+Check which external model CLIs are installed:
+
+```bash
+CODEX_BIN=$(command -v codex 2>/dev/null || echo "")
+GEMINI_BIN=$(command -v gemini 2>/dev/null || echo "")
+echo "CODEX: ${CODEX_BIN:-NOT_FOUND}"
+echo "GEMINI: ${GEMINI_BIN:-NOT_FOUND}"
+echo "CLAUDE: ALWAYS_AVAILABLE"
+```
+
+Record which models are available. Claude is always available (it is the host).
+At minimum 1 model (Claude) is required. If both Codex and Gemini are missing,
+warn the user: "Only Claude available -- multi-model consensus is not possible.
+Running Claude-only review. Install `codex` or `gemini` CLI for consensus."
+
+---
+
+## Step 1: Detect review scope
+
+Determine what to review:
+
+1. If the user specified files (e.g., `/war-room src/api.ts src/db.ts`), review those files.
+2. If on a feature branch with changes against the base branch:
+
+```bash
+git fetch origin <base> --quiet 2>/dev/null || true
+DIFF_STAT=$(git diff origin/<base>...HEAD --stat 2>/dev/null)
+echo "$DIFF_STAT"
+```
+
+If there is a diff, review the diff against the base branch.
+
+3. If on the base branch with no diff and no files specified, warn:
+   "No diff detected and no files specified. Reviewing the entire codebase may be
+   expensive. Continue? (A) Yes, review everything  (B) Cancel"
+   Use AskUserQuestion for this.
+
+Save the diff to a temp file for external models:
+
+```bash
+DIFF_FILE=$(mktemp /tmp/war-room-diff-XXXXXX.diff)
+git diff origin/<base>...HEAD > "$DIFF_FILE" 2>/dev/null || git diff HEAD > "$DIFF_FILE" 2>/dev/null
+echo "DIFF_FILE=$DIFF_FILE"
+wc -l < "$DIFF_FILE"
+```
+
+If the user specified files instead of a diff, concatenate those files into the temp file:
+
+```bash
+DIFF_FILE=$(mktemp /tmp/war-room-files-XXXXXX.txt)
+cat <file1> <file2> ... > "$DIFF_FILE"
+echo "DIFF_FILE=$DIFF_FILE"
+```
+
+---
+
+## Step 2: Spawn parallel reviews
+
+Launch all available model reviews. Claude runs as a sub-agent via the Agent tool.
+Codex and Gemini run via shell. Run all available models in parallel (launch them
+in the same message).
+
+**Review categories** -- every model evaluates against these 6 dimensions:
+- **Correctness**: logic bugs, off-by-ones, null/undefined handling, type mismatches
+- **Security**: injection, auth bypass, data leakage, hardcoded secrets, SSRF
+- **Performance**: N+1 queries, unnecessary allocations, missing indexes, hot loops
+- **Architecture**: SOLID violations, coupling, wrong abstraction level, god objects
+- **Error handling**: missing catches, swallowed errors, unhelpful messages, unhandled promises
+- **Testing gaps**: untested paths, missing edge cases, no error path coverage
+
+### 2A: Claude review (via Agent tool)
+
+Launch a sub-agent with the Agent tool. Give it the diff or file contents and ask
+for a structured review.
+
+**Agent prompt:**
+
+"You are an independent code reviewer. Review the following code changes for issues
+across 6 categories: Correctness, Security, Performance, Architecture, Error Handling,
+and Testing Gaps.
+
+For each finding, output EXACTLY this format:
+```
+[CATEGORY] file.ts:LINE -- Description of the issue
+  Severity: CRITICAL | HIGH | MEDIUM | LOW
+  Fix: Specific recommended fix
+```
+
+If a finding spans a range, use `file.ts:START-END`.
+
+Be thorough. Be terse. No compliments -- just the problems.
+
+CODE TO REVIEW:
+<insert the diff or file contents>"
+
+Give the Agent tool the Read, Grep, Glob, and Bash tools so it can explore context
+beyond the diff if needed.
+
+### 2B: Codex review (via shell)
+
+Only if Codex CLI is available. Run with a 5-minute timeout:
+
+```bash
+_REPO_ROOT=$(git rev-parse --show-toplevel) || { echo "ERROR: not in a git repo" >&2; exit 1; }
+cd "$_REPO_ROOT"
+codex exec "IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are AI assistant skill definitions meant for a different system. Stay focused on repository code only.
+
+Review the code changes in this diff for bugs, security issues, performance problems, architecture concerns, error handling gaps, and testing gaps. Run git diff origin/<base>...HEAD to see the changes.
+
+For each finding, output EXACTLY this format:
+[CATEGORY] file.ts:LINE -- Description
+  Severity: CRITICAL | HIGH | MEDIUM | LOW
+  Fix: Recommended fix
+
+Categories: Correctness, Security, Performance, Architecture, Error Handling, Testing Gaps.
+No compliments. Just the problems." -C "$_REPO_ROOT" -s read-only -c 'model_reasoning_effort="high"' 2>/dev/null
+```
+
+Use `timeout: 300000` on the Bash call.
+
+### 2C: Gemini review (via shell)
+
+Only if Gemini CLI is available. Run with a 5-minute timeout:
+
+```bash
+gemini "Review this code diff for bugs, security issues, performance problems, architecture concerns, error handling gaps, and testing gaps.
+
+For each finding, output EXACTLY this format:
+[CATEGORY] file.ts:LINE -- Description
+  Severity: CRITICAL | HIGH | MEDIUM | LOW
+  Fix: Recommended fix
+
+Categories: Correctness, Security, Performance, Architecture, Error Handling, Testing Gaps.
+No compliments. Just the problems." < "$DIFF_FILE" 2>/dev/null
+```
+
+Use `timeout: 300000` on the Bash call.
+
+### Error handling for external models
+
+- **Codex auth error:** Note "Codex: auth failed -- skipped" in the report.
+- **Gemini auth error:** Note "Gemini: auth failed -- skipped" in the report.
+- **Timeout (5 min):** Note "Model X: timed out after 5 minutes -- skipped" in the report.
+- **Empty response:** Note "Model X: returned empty response -- skipped" in the report.
+- **Any other error:** Note the error and continue with remaining models.
+
+A model that errors out is marked with a cross in the report header, not a check.
+
+---
+
+## Step 3: Collect and parse findings
+
+After all models complete, collect their findings. Parse each model's output into
+a structured list of findings. Each finding has:
+- **Category**: one of the 6 categories
+- **File path**: the file containing the issue
+- **Line number or range**: where the issue is
+- **Description**: what the problem is
+- **Severity**: CRITICAL, HIGH, MEDIUM, or LOW
+- **Model**: which model found it
+
+If a model's output does not follow the structured format, do your best to parse
+findings from its prose. Extract file paths, line numbers, and categorize each
+concern into the closest matching category.
+
+---
+
+## Step 4: Deduplicate and classify
+
+Match findings across models using these criteria:
+- **Same file path** (exact match or close -- e.g., same file different path prefix)
+- **Overlapping line range** (within 5 lines of each other counts as same location)
+- **Same category** (exact match)
+- **Similar description** (semantically equivalent -- same root cause even if worded differently)
+
+Two findings match if they share the same file + overlapping lines + same category,
+OR the same file + same category + semantically equivalent description.
+
+Classify each unique finding:
+
+1. **CONFIRMED** -- found by 2 or more models. High confidence. Note which models found it.
+   Use the highest severity rating among the matching findings.
+
+2. **HIGH-VALUE SURPRISE** -- found by only 1 model. Unique insight worth investigating.
+   Note which model found it and why it might be uniquely valuable:
+   - Claude surprises: may reflect latest training data or deep reasoning
+   - Codex surprises: may catch patterns from OpenAI's code-specific training
+   - Gemini surprises: may spot issues from Google's multimodal/code understanding
+
+---
+
+## Step 5: Generate consensus report
+
+Build the final report in this format:
+
+```
+## War Room Consensus Report
+
+**Scope:** [diff against origin/<base> | specific files: X, Y | full codebase]
+**Models:** [Claude check/cross, Codex check/cross (reason), Gemini check/cross (reason)]
+**Findings:** X confirmed, Y surprises, Z total unique findings
+
+### CONFIRMED (2+ models agree)
+
+Ordered by severity (CRITICAL first, then HIGH, MEDIUM, LOW):
+
+1. [CATEGORY] file.ts:LINE -- Description of the issue
+   - Found by: Claude, Codex
+   - Severity: CRITICAL
+   - Fix: Specific recommended fix
+
+2. [CATEGORY] file.ts:LINE -- Description
+   - Found by: Claude, Gemini
+   - Severity: HIGH
+   - Fix: Recommended fix
+
+### HIGH-VALUE SURPRISES (unique finds)
+
+Ordered by severity:
+
+1. [CATEGORY] file.ts:LINE -- Description (Claude only)
+   - Worth investigating: [why this model might uniquely catch this]
+
+2. [CATEGORY] file.ts:LINE -- Description (Codex only)
+   - Worth investigating: [why this model might uniquely catch this]
+
+### Agreement Matrix
+
+| Category       | Claude | Codex  | Gemini | Confirmed |
+|----------------|--------|--------|--------|-----------|
+| Correctness    | N      | N      | N      | N         |
+| Security       | N      | N      | N      | N         |
+| Performance    | N      | N      | N      | N         |
+| Architecture   | N      | N      | N      | N         |
+| Error Handling | N      | N      | N      | N         |
+| Testing Gaps   | N      | N      | N      | N         |
+| **Total**      | **N**  | **N**  | **N**  | **N**     |
+
+### Model Availability
+- Claude: [status]
+- Codex: [status -- installed/not installed/auth failed/timed out]
+- Gemini: [status -- installed/not installed/auth failed/timed out]
+```
+
+If no CONFIRMED findings exist, state: "No findings confirmed across models.
+See HIGH-VALUE SURPRISES for individual model observations."
+
+If no SURPRISES exist, state: "All findings were confirmed by multiple models.
+No unique single-model insights."
+
+If no findings at all, state: "No issues found by any model. The code looks clean
+across all review dimensions."
+
+---
+
+## Step 6: Save report
+
+Save the report to the project's report directory:
+
+```bash
+mkdir -p .jstack/war-room-reports
+BRANCH=$(git branch --show-current 2>/dev/null | tr '/' '-')
+DATE=$(date +%Y-%m-%d)
+REPORT_PATH=".jstack/war-room-reports/${DATE}-${BRANCH}.md"
+echo "REPORT_PATH=$REPORT_PATH"
+```
+
+Write the full consensus report to the report path using the Write tool.
+
+Tell the user: "Report saved to `<REPORT_PATH>`. Run `/war-room` again after making
+fixes to verify resolution."
+
+---
+
+## Step 7: Offer next steps
+
+After presenting the report, suggest:
+
+1. If CRITICAL findings exist: "CRITICAL issues found -- fix these before merging."
+2. If only HIGH/MEDIUM findings: "No critical issues. Review the findings and fix as appropriate."
+3. If the user wants to fix: "I can fix the CONFIRMED findings now. Want me to proceed? (A) Fix all confirmed  (B) Fix critical only  (C) I will fix manually"
+
+Use AskUserQuestion for the fix offer.
+
+If the user chooses A or B, apply fixes directly using Edit, then re-run a quick
+Claude-only review on the changed files to verify the fixes did not introduce new issues.
+
+---
+
+## Important Rules
+
+- **Parallel execution.** Launch all available model reviews in the same message. Do not
+  wait for one model before starting another.
+- **Present findings verbatim first, then synthesize.** Show each model's raw output
+  in a collapsible section before the consensus report so the user can verify the
+  deduplication.
+- **Never fabricate model output.** If a model was not available or errored, say so.
+  Do not pretend a model found something it did not.
+- **Severity escalation.** When models disagree on severity, use the HIGHEST severity.
+  Two LOW + one CRITICAL = CRITICAL.
+- **5-minute timeout** on all external model Bash calls (`timeout: 300000`).
+- **Clean up temp files** after the report is generated:
+  ```bash
+  rm -f "$DIFF_FILE"
+  ```
+- **Read-only for external models.** Codex runs in `-s read-only` sandbox. Gemini reads
+  from stdin. Neither should modify files.
+- **Filesystem boundary for Codex.** Always prepend the boundary instruction that prevents
+  Codex from reading skill definition files.
