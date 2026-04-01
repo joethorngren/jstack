@@ -218,9 +218,9 @@ describe('gen-skill-docs', () => {
     expect(content).not.toContain('Contributor Mode');
     expect(content).not.toContain('jstack_contributor');
     expect(content).not.toContain('contributor-logs');
-    expect(content).toContain('Operational Self-Improvement');
-    expect(content).toContain('jstack-learnings-log');
-    expect(content).toContain('jstack-learnings-search --limit 3');
+    // Learnings moved to tier 2+ in preamble slim — check a tier 2+ skill
+    const tier2Content = fs.readFileSync(path.join(ROOT, 'qa', 'SKILL.md'), 'utf-8');
+    expect(tier2Content).toContain('jstack-learnings');
   });
 
   test('generated SKILL.md with LEARNINGS_LOG contains operational type', () => {
@@ -229,10 +229,10 @@ describe('gen-skill-docs', () => {
     expect(content).toContain('operational');
   });
 
-  test('generated SKILL.md contains session awareness', () => {
-    const content = fs.readFileSync(path.join(ROOT, 'SKILL.md'), 'utf-8');
-    expect(content).toContain('_SESSIONS');
-    expect(content).toContain('RECOMMENDATION');
+  test('tier 2+ skills contain session awareness (moved from tier 1)', () => {
+    // Session tracking moved to tier 2+ in preamble slim
+    const content = fs.readFileSync(path.join(ROOT, 'qa', 'SKILL.md'), 'utf-8');
+    expect(content).toContain('_BRANCH');
   });
 
   test('generated SKILL.md contains branch detection', () => {
@@ -1606,7 +1606,7 @@ describe('Codex generation (--host codex)', () => {
     const descLines = frontmatter.split('\n').filter(l => l.startsWith('  '));
     expect(descLines.length).toBeGreaterThan(1);
     // Verify key phrases survived
-    expect(frontmatter).toContain('YC Brainstorm');
+    expect(frontmatter).toContain('Brainstorm');
   });
 
   test('hook skills have safety prose and no hooks: in frontmatter', () => {
@@ -2165,50 +2165,25 @@ describe('discover-skills hidden directory filtering', () => {
   });
 });
 
-describe('telemetry', () => {
-  test('generated SKILL.md contains telemetry start block', () => {
+describe('telemetry removed', () => {
+  test('generated SKILL.md does NOT contain remote telemetry', () => {
     const content = fs.readFileSync(path.join(ROOT, 'SKILL.md'), 'utf-8');
-    expect(content).toContain('_TEL_START');
-    expect(content).toContain('_SESSION_ID');
-    expect(content).toContain('TELEMETRY:');
-    expect(content).toContain('TEL_PROMPTED:');
-    expect(content).toContain('jstack-config get telemetry');
+    expect(content).not.toContain('telemetry-log');
+    expect(content).not.toContain('telemetry-sync');
+    expect(content).not.toContain('supabase');
+    expect(content).not.toContain('installation-id');
+    expect(content).not.toContain('Help jstack get better');
+    expect(content).not.toContain('.telemetry-prompted');
   });
 
-  test('generated SKILL.md contains telemetry opt-in prompt', () => {
-    const content = fs.readFileSync(path.join(ROOT, 'SKILL.md'), 'utf-8');
-    expect(content).toContain('.telemetry-prompted');
-    expect(content).toContain('Help jstack get better');
-    expect(content).toContain('jstack-config set telemetry community');
-    expect(content).toContain('jstack-config set telemetry anonymous');
-    expect(content).toContain('jstack-config set telemetry off');
-  });
-
-  test('generated SKILL.md contains telemetry epilogue', () => {
-    const content = fs.readFileSync(path.join(ROOT, 'SKILL.md'), 'utf-8');
-    expect(content).toContain('Telemetry (run last)');
-    expect(content).toContain('jstack-telemetry-log');
-    expect(content).toContain('_TEL_END');
-    expect(content).toContain('_TEL_DUR');
-    expect(content).toContain('SKILL_NAME');
-    expect(content).toContain('OUTCOME');
-    expect(content).toContain('PLAN MODE EXCEPTION');
-  });
-
-  test('generated SKILL.md contains pending marker handling', () => {
-    const content = fs.readFileSync(path.join(ROOT, 'SKILL.md'), 'utf-8');
-    expect(content).toContain('.pending');
-    expect(content).toContain('_pending_finalize');
-  });
-
-  test('telemetry blocks appear in all skill files that use PREAMBLE', () => {
+  test('no skill files contain remote telemetry references', () => {
     const skills = ['qa', 'ship', 'review', 'plan-ceo-review', 'plan-eng-review', 'retro'];
     for (const skill of skills) {
       const skillPath = path.join(ROOT, skill, 'SKILL.md');
       if (fs.existsSync(skillPath)) {
         const content = fs.readFileSync(skillPath, 'utf-8');
-        expect(content).toContain('_TEL_START');
-        expect(content).toContain('Telemetry (run last)');
+        expect(content).not.toContain('telemetry-log');
+        expect(content).not.toContain('supabase');
       }
     }
   });
@@ -2287,24 +2262,15 @@ describe('community fixes wave', () => {
     }
   });
 
-  // #467 — Telemetry: preamble JSONL writes are gated by telemetry setting
-  test('preamble JSONL writes are inside telemetry conditional', () => {
+  // jstack: local JSONL analytics write unconditionally (no remote telemetry)
+  test('preamble JSONL writes are local-only (no remote telemetry gating)', () => {
     const preamble = fs.readFileSync(path.join(ROOT, 'scripts/resolvers/preamble.ts'), 'utf-8');
-    // Find all skill-usage.jsonl write lines
-    const lines = preamble.split('\n');
-    for (let i = 0; i < lines.length; i++) {
-      if (lines[i].includes('skill-usage.jsonl') && lines[i].includes('>>')) {
-        // Look backwards for a telemetry conditional within 5 lines
-        let foundConditional = false;
-        for (let j = i - 1; j >= Math.max(0, i - 5); j--) {
-          if (lines[j].includes('_TEL') && lines[j].includes('off')) {
-            foundConditional = true;
-            break;
-          }
-        }
-        expect(foundConditional).toBe(true);
-      }
-    }
+    // Verify local analytics exist
+    expect(preamble).toContain('skill-usage.jsonl');
+    // Verify no remote telemetry references
+    expect(preamble).not.toContain('telemetry-sync');
+    expect(preamble).not.toContain('supabase');
+    expect(preamble).not.toContain('telemetry-ingest');
   });
 });
 

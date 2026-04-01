@@ -1,6 +1,6 @@
 {
   "name": "jstack",
-  "version": "0.15.0.0",
+  "version": "0.1.0",
   "description": "Privacy-first AI engineering toolkit — Claude Code skills + fast headless browser. One repo, one install, entire AI engineering workflow.",
   "license": "MIT",
   "type": "module",
