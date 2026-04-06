@@ -1,6 +1,6 @@
 {
   "name": "jstack",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "jstack — privacy-first Claude Code skills + fast headless browser. Forked from gstack.",
   "license": "MIT",
   "type": "module",
