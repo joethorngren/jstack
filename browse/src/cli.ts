@@ -1,8 +1,8 @@
 /**
- * gstack CLI — thin wrapper that talks to the persistent server
+ * jstack CLI — thin wrapper that talks to the persistent server
  *
  * Flow:
- *   1. Read .gstack/browse.json for port + token
+ *   1. Read .jstack/browse.json for port + token
  *   2. If missing or stale PID → start server in background
  *   3. Health check + version mismatch detection
  *   4. Send command via HTTP POST
@@ -180,7 +180,7 @@ async function killServer(pid: number): Promise<void> {
  * Verifies PID ownership before sending signals.
  */
 function cleanupLegacyState(): void {
-  // No legacy state on Windows — /tmp and `ps` don't exist, and gstack
+  // No legacy state on Windows — /tmp and `ps` don't exist, and jstack
   // never ran on Windows before the Node.js fallback was added.
   if (IS_WINDOWS) return;
 
@@ -336,7 +336,7 @@ async function ensureServer(): Promise<ServerState> {
   // fail fast with a clear error instead of silently starting a new one.
   if (process.env.BROWSE_NO_AUTOSTART === '1') {
     console.error('[browse] Server not available and BROWSE_NO_AUTOSTART is set.');
-    console.error('[browse] The headed browser may have been closed. Run /open-gstack-browser to restart.');
+    console.error('[browse] The headed browser may have been closed. Run /open-jstack-browser to restart.');
     process.exit(1);
   }
 
@@ -345,7 +345,7 @@ async function ensureServer(): Promise<ServerState> {
   // Silently replacing it would be confusing — tell the user to reconnect.
   if (state && state.mode === 'headed' && isProcessAlive(state.pid)) {
     console.error(`[browse] Headed server running (PID ${state.pid}) but not responding.`);
-    console.error(`[browse] Run '/open-gstack-browser' to restart.`);
+    console.error(`[browse] Run '/open-jstack-browser' to restart.`);
     process.exit(1);
   }
 
@@ -453,7 +453,7 @@ async function main() {
   const args = process.argv.slice(2);
 
   if (args.length === 0 || args[0] === '--help' || args[0] === '-h') {
-    console.log(`gstack browse — Fast headless browser for AI coding agents
+    console.log(`jstack browse — Fast headless browser for AI coding agents
 
 Usage: browse <command> [args...]
 
@@ -527,7 +527,7 @@ Refs:           After 'snapshot', use @e1, @e2... as selectors:
     // Kill orphaned Chromium processes that may still hold the profile lock.
     // The server PID is the Bun process; Chromium is a child that can outlive it
     // if the server is killed abruptly (SIGKILL, crash, manual rm of state file).
-    const profileDir = path.join(process.env.HOME || '/tmp', '.gstack', 'chromium-profile');
+    const profileDir = path.join(process.env.HOME || '/tmp', '.jstack', 'chromium-profile');
     try {
       const singletonLock = path.join(profileDir, 'SingletonLock');
       const lockTarget = fs.readlinkSync(singletonLock); // e.g. "hostname-12345"
@@ -587,7 +587,7 @@ Refs:           After 'snapshot', use @e1, @e2... as selectors:
           throw new Error(`sidebar-agent.ts not found at ${agentScript}`);
         }
         // Clear old agent queue
-        const agentQueue = path.join(process.env.HOME || '/tmp', '.gstack', 'sidebar-agent-queue.jsonl');
+        const agentQueue = path.join(process.env.HOME || '/tmp', '.jstack', 'sidebar-agent-queue.jsonl');
         try {
           fs.mkdirSync(path.dirname(agentQueue), { recursive: true, mode: 0o700 });
           fs.writeFileSync(agentQueue, '', { mode: 0o600 });
@@ -666,7 +666,7 @@ Refs:           After 'snapshot', use @e1, @e2... as selectors:
       }
     }
     // Clean profile locks and state file
-    const profileDir = path.join(process.env.HOME || '/tmp', '.gstack', 'chromium-profile');
+    const profileDir = path.join(process.env.HOME || '/tmp', '.jstack', 'chromium-profile');
     for (const lockFile of ['SingletonLock', 'SingletonSocket', 'SingletonCookie']) {
       try { fs.unlinkSync(path.join(profileDir, lockFile)); } catch {}
     }

@@ -1,4 +1,4 @@
-# gstack-full Pipeline
+# jstack-full Pipeline
 
 Injected by the orchestrator for complete feature builds. Append to existing CLAUDE.md.
 

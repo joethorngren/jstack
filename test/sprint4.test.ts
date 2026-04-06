@@ -218,15 +218,15 @@ describe('Sprint 4: upstream sync', () => {
     // The merge script must handle all gstack→jstack renames documented in UPSTREAM-RENAME-MAP.md
     const criticalPatterns = [
       'garrytan/gstack',    // GitHub repo reference
-      'GSTACK_ROOT',        // Env var
-      'GSTACK_BIN',         // Env var
-      'GSTACK_BROWSE',      // Env var
-      'GSTACK_DESIGN',      // Env var
-      'gstack-config',      // Bin script
-      'gstack-slug',        // Bin script
-      'gstack-repo-mode',   // Bin script
+      'JSTACK_ROOT',        // Env var
+      'JSTACK_BIN',         // Env var
+      'JSTACK_BROWSE',      // Env var
+      'JSTACK_DESIGN',      // Env var
+      'jstack-config',      // Bin script
+      'jstack-slug',        // Bin script
+      'jstack-repo-mode',   // Bin script
       'office-hours',       // Skill rename
-      '~/\\.gstack',        // Config directory
+      '~/\\.jstack',        // Config directory
     ];
 
     for (const pattern of criticalPatterns) {

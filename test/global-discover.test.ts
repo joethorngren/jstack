@@ -136,7 +136,7 @@ describe("jstack-global-discover", () => {
     let tmpDir: string;
 
     beforeEach(() => {
-      tmpDir = mkdtempSync(join(tmpdir(), "gstack-codex-test-"));
+      tmpDir = mkdtempSync(join(tmpdir(), "jstack-codex-test-"));
       // Build a realistic ~/.codex/sessions/YYYY/MM/DD structure
       const now = new Date();
       const y = now.getFullYear().toString();

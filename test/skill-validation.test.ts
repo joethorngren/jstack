@@ -222,7 +222,7 @@ describe('Generated SKILL.md freshness', () => {
   });
 });
 
-// --- Version check preamble validation (jstack: local-only, no remote update check) ---
+// --- Preamble validation (upstream-aligned: update-check + session tracking) ---
 
 describe('Version check preamble', () => {
   const skillsWithPreamble = [
@@ -245,11 +245,11 @@ describe('Version check preamble', () => {
   ];
 
   for (const skill of skillsWithPreamble) {
-    test(`${skill} uses local version check (cat VERSION)`, () => {
+    test(`${skill} has update-check in preamble`, () => {
       const content = fs.readFileSync(path.join(ROOT, skill), 'utf-8');
-      // jstack uses local version check, not remote update-check binary
-      expect(content).toContain('VERSION');
-      expect(content).not.toContain('jstack-update-check');
+      // Upstream preamble uses update-check binary
+      expect(content).toContain('jstack-update-check');
+      expect(content).toContain('jstack-config');
     });
   }
 

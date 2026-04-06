@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# gstack-settings-hook — add/remove SessionStart hooks in Claude Code settings.json
+# jstack-settings-hook — add/remove SessionStart hooks in Claude Code settings.json
 #
 # Usage:
-#   gstack-settings-hook add <hook-command>     # add SessionStart hook
-#   gstack-settings-hook remove <hook-command>  # remove SessionStart hook
+#   jstack-settings-hook add <hook-command>     # add SessionStart hook
+#   jstack-settings-hook remove <hook-command>  # remove SessionStart hook
 #
-# Requires: bun (already a gstack hard dependency)
+# Requires: bun (already a jstack hard dependency)
 # Writes atomically: .tmp + rename to prevent corruption on crash/disk-full.
 
 set -euo pipefail
@@ -15,7 +15,7 @@ HOOK_CMD="${2:-}"
 SETTINGS_FILE="${GSTACK_SETTINGS_FILE:-$HOME/.claude/settings.json}"
 
 if [ -z "$ACTION" ] || [ -z "$HOOK_CMD" ]; then
-  echo "Usage: gstack-settings-hook {add|remove} <hook-command>" >&2
+  echo "Usage: jstack-settings-hook {add|remove} <hook-command>" >&2
   exit 1
 fi
 
@@ -39,7 +39,7 @@ case "$ACTION" in
 
       // Dedup: check if hook command already registered
       const exists = settings.hooks.SessionStart.some(entry =>
-        entry.hooks && entry.hooks.some(h => h.command && h.command.includes('gstack-session-update'))
+        entry.hooks && entry.hooks.some(h => h.command && h.command.includes('jstack-session-update'))
       );
 
       if (!exists) {
@@ -64,7 +64,7 @@ case "$ACTION" in
 
       if (settings.hooks && settings.hooks.SessionStart) {
         settings.hooks.SessionStart = settings.hooks.SessionStart.filter(entry =>
-          !(entry.hooks && entry.hooks.some(h => h.command && h.command.includes('gstack-session-update')))
+          !(entry.hooks && entry.hooks.some(h => h.command && h.command.includes('jstack-session-update')))
         );
         if (settings.hooks.SessionStart.length === 0) delete settings.hooks.SessionStart;
         if (Object.keys(settings.hooks).length === 0) delete settings.hooks;

@@ -1,5 +1,5 @@
 /**
- * gstack browse server — persistent Chromium daemon
+ * jstack browse server — persistent Chromium daemon
  *
  * Architecture:
  *   Bun.serve HTTP on localhost → routes commands to Playwright
@@ -8,8 +8,8 @@
  *   Auto-shutdown after BROWSE_IDLE_TIMEOUT (default 30 min)
  *
  * State:
- *   State file: <project-root>/.gstack/browse.json (set via BROWSE_STATE_FILE env)
- *   Log files:  <project-root>/.gstack/browse-{console,network,dialog}.log
+ *   State file: <project-root>/.jstack/browse.json (set via BROWSE_STATE_FILE env)
+ *   Log files:  <project-root>/.jstack/browse-{console,network,dialog}.log
  *   Port:       random 10000-60000 (or BROWSE_PORT env for debug override)
  */
 
@@ -87,7 +87,7 @@ function generateHelpText(): string {
     'Visual', 'Snapshot', 'Meta', 'Tabs', 'Server',
   ];
 
-  const lines = ['gstack browse — headless browser for AI agents', '', 'Commands:'];
+  const lines = ['jstack browse — headless browser for AI agents', '', 'Commands:'];
   for (const cat of categoryOrder) {
     const cmds = groups.get(cat);
     if (!cmds) continue;
@@ -143,7 +143,7 @@ interface SidebarSession {
   lastActiveAt: string;
 }
 
-const SESSIONS_DIR = path.join(process.env.HOME || '/tmp', '.gstack', 'sidebar-sessions');
+const SESSIONS_DIR = path.join(process.env.HOME || '/tmp', '.jstack', 'sidebar-sessions');
 const AGENT_TIMEOUT_MS = 300_000; // 5 minutes — multi-page tasks need time
 const MAX_QUEUE = 5;
 
@@ -191,8 +191,8 @@ let chatBuffer: ChatEntry[] = [];
 function findBrowseBin(): string {
   const candidates = [
     path.resolve(__dirname, '..', 'dist', 'browse'),
-    path.resolve(__dirname, '..', '..', '.claude', 'skills', 'gstack', 'browse', 'dist', 'browse'),
-    path.join(process.env.HOME || '', '.claude', 'skills', 'gstack', 'browse', 'dist', 'browse'),
+    path.resolve(__dirname, '..', '..', '.claude', 'skills', 'jstack', 'browse', 'dist', 'browse'),
+    path.join(process.env.HOME || '', '.claude', 'skills', 'jstack', 'browse', 'dist', 'browse'),
   ];
   for (const c of candidates) {
     try { if (fs.existsSync(c)) return c; } catch {}
@@ -333,7 +333,7 @@ function createWorktree(sessionId: string): string | null {
     if (gitCheck.exitCode !== 0) return null;
     const repoRoot = gitCheck.stdout.toString().trim();
 
-    const worktreeDir = path.join(process.env.HOME || '/tmp', '.gstack', 'worktrees', sessionId.slice(0, 8));
+    const worktreeDir = path.join(process.env.HOME || '/tmp', '.jstack', 'worktrees', sessionId.slice(0, 8));
 
     // Clean up if dir exists from prior crash
     if (fs.existsSync(worktreeDir)) {
@@ -548,8 +548,8 @@ function spawnClaude(userMessage: string, extensionUrl?: string | null, forTabId
   // fails with ENOENT on everything, including /bin/bash). Instead,
   // write the command to a queue file that the sidebar-agent process
   // (running as non-compiled bun) picks up and spawns claude.
-  const agentQueue = process.env.SIDEBAR_QUEUE_PATH || path.join(process.env.HOME || '/tmp', '.gstack', 'sidebar-agent-queue.jsonl');
-  const gstackDir = path.dirname(agentQueue);
+  const agentQueue = process.env.SIDEBAR_QUEUE_PATH || path.join(process.env.HOME || '/tmp', '.jstack', 'sidebar-agent-queue.jsonl');
+  const jstackDir = path.dirname(agentQueue);
   const entry = JSON.stringify({
     ts: new Date().toISOString(),
     message: userMessage,
@@ -562,7 +562,7 @@ function spawnClaude(userMessage: string, extensionUrl?: string | null, forTabId
     tabId: agentTabId,
   });
   try {
-    fs.mkdirSync(gstackDir, { recursive: true, mode: 0o700 });
+    fs.mkdirSync(jstackDir, { recursive: true, mode: 0o700 });
     fs.appendFileSync(agentQueue, entry + '\n');
     try { fs.chmodSync(agentQueue, 0o600); } catch {}
   } catch (err: any) {
@@ -590,7 +590,7 @@ function killAgent(targetTabId?: number | null): void {
   // Using per-tab files prevents race conditions where one agent's cancel
   // signal is consumed by a different tab's agent in concurrent mode.
   // When targetTabId is provided, only that tab's agent is cancelled.
-  const cancelDir = path.join(process.env.HOME || '/tmp', '.gstack');
+  const cancelDir = path.join(process.env.HOME || '/tmp', '.jstack');
   const tabId = targetTabId ?? agentTabId ?? 0;
   const cancelFile = path.join(cancelDir, `sidebar-agent-cancel-${tabId}`);
   try { fs.writeFileSync(cancelFile, Date.now().toString()); } catch {}
@@ -976,7 +976,7 @@ async function shutdown() {
   await browserManager.close();
 
   // Clean up Chromium profile locks (prevent SingletonLock on next launch)
-  const profileDir = path.join(process.env.HOME || '/tmp', '.gstack', 'chromium-profile');
+  const profileDir = path.join(process.env.HOME || '/tmp', '.jstack', 'chromium-profile');
   for (const lockFile of ['SingletonLock', 'SingletonSocket', 'SingletonCookie']) {
     try { fs.unlinkSync(path.join(profileDir, lockFile)); } catch (err: any) {
       console.debug('[browse] Lock cleanup:', lockFile, err.message);
@@ -1017,7 +1017,7 @@ function emergencyCleanup() {
     console.error('[browse] Emergency: failed to save session:', err.message);
   }
   // Clean Chromium profile locks
-  const profileDir = path.join(process.env.HOME || '/tmp', '.gstack', 'chromium-profile');
+  const profileDir = path.join(process.env.HOME || '/tmp', '.jstack', 'chromium-profile');
   for (const lockFile of ['SingletonLock', 'SingletonSocket', 'SingletonCookie']) {
     try { fs.unlinkSync(path.join(profileDir, lockFile)); } catch (err: any) {
       console.debug('[browse] Emergency lock cleanup:', lockFile, err.message);
@@ -1084,12 +1084,12 @@ async function start() {
           // Check project-local designs first, then global
           const slug = process.env.GSTACK_SLUG || 'unknown';
           const homeDir = process.env.HOME || process.env.USERPROFILE || '/tmp';
-          const projectWelcome = `${homeDir}/.gstack/projects/${slug}/designs/welcome-page-20260331/finalized.html`;
+          const projectWelcome = `${homeDir}/.jstack/projects/${slug}/designs/welcome-page-20260331/finalized.html`;
           try { if (require('fs').existsSync(projectWelcome)) return projectWelcome; } catch (err: any) {
             console.warn('[browse] Error checking project welcome page:', err.message);
           }
-          // Fallback: built-in welcome page from gstack install
-          const skillRoot = process.env.GSTACK_SKILL_ROOT || `${homeDir}/.claude/skills/gstack`;
+          // Fallback: built-in welcome page from jstack install
+          const skillRoot = process.env.GSTACK_SKILL_ROOT || `${homeDir}/.claude/skills/jstack`;
           const builtinWelcome = `${skillRoot}/browse/src/welcome.html`;
           try { if (require('fs').existsSync(builtinWelcome)) return builtinWelcome; } catch (err: any) {
             console.warn('[browse] Error checking builtin welcome page:', err.message);
