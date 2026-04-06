@@ -28,7 +28,7 @@ This section is referenced by all skill preambles when they detect `UPGRADE_AVAI
 First, check if auto-upgrade is enabled:
 ```bash
 _AUTO=""
-[ "${GSTACK_AUTO_UPGRADE:-}" = "1" ] && _AUTO="true"
+[ "${JSTACK_AUTO_UPGRADE:-}" = "1" ] && _AUTO="true"
 [ -z "$_AUTO" ] && _AUTO=$(~/.claude/skills/jstack/bin/jstack-config get auto_upgrade 2>/dev/null || true)
 echo "AUTO_UPGRADE=$_AUTO"
 ```
@@ -143,20 +143,20 @@ Use the install directory from Step 2. Check if there's also a local vendored co
 
 ```bash
 _ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
-LOCAL_GSTACK=""
+LOCAL_JSTACK=""
 if [ -n "$_ROOT" ] && [ -d "$_ROOT/.claude/skills/jstack" ]; then
   _RESOLVED_LOCAL=$(cd "$_ROOT/.claude/skills/jstack" && pwd -P)
   _RESOLVED_PRIMARY=$(cd "$INSTALL_DIR" && pwd -P)
   if [ "$_RESOLVED_LOCAL" != "$_RESOLVED_PRIMARY" ]; then
-    LOCAL_GSTACK="$_ROOT/.claude/skills/jstack"
+    LOCAL_JSTACK="$_ROOT/.claude/skills/jstack"
   fi
 fi
 _TEAM_MODE=$(~/.claude/skills/jstack/bin/jstack-config get team_mode 2>/dev/null || echo "false")
-echo "LOCAL_GSTACK=$LOCAL_GSTACK"
+echo "LOCAL_JSTACK=$LOCAL_JSTACK"
 echo "TEAM_MODE=$_TEAM_MODE"
 ```
 
-**If `LOCAL_GSTACK` is non-empty AND `TEAM_MODE` is `true`:** Remove the vendored copy. Team mode uses the global install as the single source of truth.
+**If `LOCAL_JSTACK` is non-empty AND `TEAM_MODE` is `true`:** Remove the vendored copy. Team mode uses the global install as the single source of truth.
 
 ```bash
 cd "$_ROOT"
@@ -164,26 +164,26 @@ git rm -r --cached .claude/skills/jstack/ 2>/dev/null || true
 if ! grep -qF '.claude/skills/jstack/' .gitignore 2>/dev/null; then
   echo '.claude/skills/jstack/' >> .gitignore
 fi
-rm -rf "$LOCAL_GSTACK"
+rm -rf "$LOCAL_JSTACK"
 ```
-Tell user: "Removed vendored copy at `$LOCAL_GSTACK` (team mode active — global install is the source of truth). Commit the `.gitignore` change when ready."
+Tell user: "Removed vendored copy at `$LOCAL_JSTACK` (team mode active — global install is the source of truth). Commit the `.gitignore` change when ready."
 
-**If `LOCAL_GSTACK` is non-empty AND `TEAM_MODE` is NOT `true`:** Update it by copying from the freshly-upgraded primary install (same approach as README vendored install):
+**If `LOCAL_JSTACK` is non-empty AND `TEAM_MODE` is NOT `true`:** Update it by copying from the freshly-upgraded primary install (same approach as README vendored install):
 ```bash
-mv "$LOCAL_GSTACK" "$LOCAL_GSTACK.bak"
-cp -Rf "$INSTALL_DIR" "$LOCAL_GSTACK"
-rm -rf "$LOCAL_GSTACK/.git"
-cd "$LOCAL_GSTACK" && ./setup
-rm -rf "$LOCAL_GSTACK.bak"
+mv "$LOCAL_JSTACK" "$LOCAL_JSTACK.bak"
+cp -Rf "$INSTALL_DIR" "$LOCAL_JSTACK"
+rm -rf "$LOCAL_JSTACK/.git"
+cd "$LOCAL_JSTACK" && ./setup
+rm -rf "$LOCAL_JSTACK.bak"
 ```
-Tell user: "Also updated vendored copy at `$LOCAL_GSTACK` — commit `.claude/skills/jstack/` when you're ready."
+Tell user: "Also updated vendored copy at `$LOCAL_JSTACK` — commit `.claude/skills/jstack/` when you're ready."
 
 If `./setup` fails, restore from backup and warn the user:
 ```bash
-rm -rf "$LOCAL_GSTACK"
-mv "$LOCAL_GSTACK.bak" "$LOCAL_GSTACK"
+rm -rf "$LOCAL_JSTACK"
+mv "$LOCAL_JSTACK.bak" "$LOCAL_JSTACK"
 ```
-Tell user: "Sync failed — restored previous version at `$LOCAL_GSTACK`. Run `/jstack-upgrade` manually to retry."
+Tell user: "Sync failed — restored previous version at `$LOCAL_JSTACK`. Run `/jstack-upgrade` manually to retry."
 
 ### Step 4.75: Run version migrations
 
@@ -257,16 +257,16 @@ Use the output to determine if an upgrade is available.
 
 3. If no output (primary is up to date): check for a stale local vendored copy.
 
-Run the Step 2 bash block above to detect the primary install type and directory (`INSTALL_TYPE` and `INSTALL_DIR`). Then run the Step 4.5 detection bash block above to check for a local vendored copy (`LOCAL_GSTACK`) and team mode status (`TEAM_MODE`).
+Run the Step 2 bash block above to detect the primary install type and directory (`INSTALL_TYPE` and `INSTALL_DIR`). Then run the Step 4.5 detection bash block above to check for a local vendored copy (`LOCAL_JSTACK`) and team mode status (`TEAM_MODE`).
 
-**If `LOCAL_GSTACK` is empty** (no local vendored copy): tell the user "You're already on the latest version (v{version})."
+**If `LOCAL_JSTACK` is empty** (no local vendored copy): tell the user "You're already on the latest version (v{version})."
 
-**If `LOCAL_GSTACK` is non-empty AND `TEAM_MODE` is `true`:** Remove the vendored copy using the Step 4.5 team-mode removal bash block above. Tell user: "Global v{version} is up to date. Removed stale vendored copy (team mode active). Commit the `.gitignore` change when ready."
+**If `LOCAL_JSTACK` is non-empty AND `TEAM_MODE` is `true`:** Remove the vendored copy using the Step 4.5 team-mode removal bash block above. Tell user: "Global v{version} is up to date. Removed stale vendored copy (team mode active). Commit the `.gitignore` change when ready."
 
-**If `LOCAL_GSTACK` is non-empty AND `TEAM_MODE` is NOT `true`**, compare versions:
+**If `LOCAL_JSTACK` is non-empty AND `TEAM_MODE` is NOT `true`**, compare versions:
 ```bash
 PRIMARY_VER=$(cat "$INSTALL_DIR/VERSION" 2>/dev/null || echo "unknown")
-LOCAL_VER=$(cat "$LOCAL_GSTACK/VERSION" 2>/dev/null || echo "unknown")
+LOCAL_VER=$(cat "$LOCAL_JSTACK/VERSION" 2>/dev/null || echo "unknown")
 echo "PRIMARY=$PRIMARY_VER LOCAL=$LOCAL_VER"
 ```
 

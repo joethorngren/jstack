@@ -1396,8 +1396,10 @@ describe('Codex skill validation', () => {
     return skills;
   })();
 
-  test('all skills (except /codex) have both Claude and Codex variants', () => {
+  test('all generated skills (except /codex and compatibility aliases) have both Claude and Codex variants', () => {
+    const setupOnlyAliases = new Set(['connect-chrome', 'open-gstack-browser']);
     for (const skillDir of CLAUDE_SKILLS_WITH_TEMPLATES) {
+      if (setupOnlyAliases.has(skillDir)) continue;
       // Claude variant
       const claudeMd = path.join(ROOT, skillDir, 'SKILL.md');
       expect(fs.existsSync(claudeMd)).toBe(true);

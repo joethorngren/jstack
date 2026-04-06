@@ -243,7 +243,7 @@ function shortenPath(str: string): string {
     .replace(new RegExp(BROWSE_BIN.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), '$B')
     .replace(/\/Users\/[^/]+/g, '~')
     .replace(/\/conductor\/workspaces\/[^/]+\/[^/]+/g, '')
-    .replace(/\.claude\/skills\/gstack\//g, '')
+    .replace(/\.claude\/skills\/jstack\//g, '')
     .replace(/browse\/dist\/browse/g, '$B');
 }
 
@@ -1082,14 +1082,14 @@ async function start() {
       if (url.pathname === '/welcome') {
         const welcomePath = (() => {
           // Check project-local designs first, then global
-          const slug = process.env.GSTACK_SLUG || 'unknown';
+          const slug = process.env.JSTACK_SLUG || 'unknown';
           const homeDir = process.env.HOME || process.env.USERPROFILE || '/tmp';
           const projectWelcome = `${homeDir}/.jstack/projects/${slug}/designs/welcome-page-20260331/finalized.html`;
           try { if (require('fs').existsSync(projectWelcome)) return projectWelcome; } catch (err: any) {
             console.warn('[browse] Error checking project welcome page:', err.message);
           }
           // Fallback: built-in welcome page from jstack install
-          const skillRoot = process.env.GSTACK_SKILL_ROOT || `${homeDir}/.claude/skills/jstack`;
+          const skillRoot = process.env.JSTACK_SKILL_ROOT || `${homeDir}/.claude/skills/jstack`;
           const builtinWelcome = `${skillRoot}/browse/src/welcome.html`;
           try { if (require('fs').existsSync(builtinWelcome)) return builtinWelcome; } catch (err: any) {
             console.warn('[browse] Error checking builtin welcome page:', err.message);

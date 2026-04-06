@@ -5,7 +5,7 @@ Append to existing CLAUDE.md.
 
 ## Planning Pipeline
 1. Read CLAUDE.md and understand the project context.
-2. Run /office-hours to produce a design doc (problem statement, premises, alternatives).
+2. Run /brainstorm to produce a design doc (problem statement, premises, alternatives).
 3. Run /autoplan to review the design (CEO + eng + design + DX reviews + codex adversarial).
 4. Save the final reviewed plan to a file the orchestrator can reference later.
    Write it to: plans/<project-slug>-plan-<date>.md in the current repo.

@@ -7,7 +7,7 @@
 # Env overrides (for testing):
 #   JSTACK_STATE_DIR   — override ~/.jstack state directory
 #   JSTACK_INSTALL_DIR — override jstack install directory
-#   GSTACK_SKILLS_DIR  — override target skills directory
+#   JSTACK_SKILLS_DIR  — override target skills directory
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -30,7 +30,7 @@ if [ -z "$INSTALL_DIR" ] || [ ! -d "$INSTALL_DIR" ]; then
 fi
 
 # Detect target skills dir
-SKILLS_DIR="${GSTACK_SKILLS_DIR:-$(dirname "$INSTALL_DIR")}"
+SKILLS_DIR="${JSTACK_SKILLS_DIR:-$(dirname "$INSTALL_DIR")}"
 [ -d "$SKILLS_DIR" ] || mkdir -p "$SKILLS_DIR"
 
 # Read prefix setting

@@ -74,7 +74,7 @@ describe('jstack-relink (#578)', () => {
     // Run relink with env pointing to the mock install
     const output = run(`${path.join(installDir, 'bin', 'jstack-relink')}`, {
       JSTACK_INSTALL_DIR: installDir,
-      GSTACK_SKILLS_DIR: skillsDir,
+      JSTACK_SKILLS_DIR: skillsDir,
     });
     // Verify jstack-* symlinks exist
     expect(fs.existsSync(path.join(skillsDir, 'jstack-qa'))).toBe(true);
@@ -89,7 +89,7 @@ describe('jstack-relink (#578)', () => {
     run(`${path.join(installDir, 'bin', 'jstack-config')} set skill_prefix false`);
     const output = run(`${path.join(installDir, 'bin', 'jstack-relink')}`, {
       JSTACK_INSTALL_DIR: installDir,
-      GSTACK_SKILLS_DIR: skillsDir,
+      JSTACK_SKILLS_DIR: skillsDir,
     });
     expect(fs.existsSync(path.join(skillsDir, 'qa'))).toBe(true);
     expect(fs.existsSync(path.join(skillsDir, 'ship'))).toBe(true);
@@ -106,7 +106,7 @@ describe('jstack-relink (#578)', () => {
     run(`${path.join(installDir, 'bin', 'jstack-config')} set skill_prefix false`);
     run(`${path.join(installDir, 'bin', 'jstack-relink')}`, {
       JSTACK_INSTALL_DIR: installDir,
-      GSTACK_SKILLS_DIR: skillsDir,
+      JSTACK_SKILLS_DIR: skillsDir,
     });
     for (const skill of ['qa', 'ship', 'review', 'plan-ceo-review']) {
       const skillPath = path.join(skillsDir, skill);
@@ -130,7 +130,7 @@ describe('jstack-relink (#578)', () => {
     run(`${path.join(installDir, 'bin', 'jstack-config')} set skill_prefix true`);
     run(`${path.join(installDir, 'bin', 'jstack-relink')}`, {
       JSTACK_INSTALL_DIR: installDir,
-      GSTACK_SKILLS_DIR: skillsDir,
+      JSTACK_SKILLS_DIR: skillsDir,
     });
     for (const skill of ['jstack-qa', 'jstack-ship']) {
       const skillPath = path.join(skillsDir, skill);
@@ -153,7 +153,7 @@ describe('jstack-relink (#578)', () => {
     run(`${path.join(installDir, 'bin', 'jstack-config')} set skill_prefix false`);
     run(`${path.join(installDir, 'bin', 'jstack-relink')}`, {
       JSTACK_INSTALL_DIR: installDir,
-      GSTACK_SKILLS_DIR: skillsDir,
+      JSTACK_SKILLS_DIR: skillsDir,
     });
 
     // After relink: must be real directories, not symlinks
@@ -169,7 +169,7 @@ describe('jstack-relink (#578)', () => {
     run(`${path.join(installDir, 'bin', 'jstack-config')} set skill_prefix false`);
     run(`${path.join(installDir, 'bin', 'jstack-relink')}`, {
       JSTACK_INSTALL_DIR: installDir,
-      GSTACK_SKILLS_DIR: skillsDir,
+      JSTACK_SKILLS_DIR: skillsDir,
     });
     // Enumerate everything in skills dir
     const entries = fs.readdirSync(skillsDir);
@@ -180,13 +180,13 @@ describe('jstack-relink (#578)', () => {
     expect(leaked).toEqual([]);
   });
 
-  // FIRST INSTALL: --prefix must create ONLY jstack-\** names, zero flat-name pollution
+  // FIRST INSTALL: --prefix must create ONLY jstack-* names, zero flat-name pollution
   test('first install --prefix: only jstack-* entries exist, zero flat names', () => {
     setupMockInstall(['qa', 'ship', 'review', 'plan-ceo-review', 'jstack-upgrade']);
     run(`${path.join(installDir, 'bin', 'jstack-config')} set skill_prefix true`);
     run(`${path.join(installDir, 'bin', 'jstack-relink')}`, {
       JSTACK_INSTALL_DIR: installDir,
-      GSTACK_SKILLS_DIR: skillsDir,
+      JSTACK_SKILLS_DIR: skillsDir,
     });
     const entries = fs.readdirSync(skillsDir);
     // Expected: jstack-qa, jstack-ship, jstack-review, jstack-plan-ceo-review, jstack-upgrade
@@ -205,7 +205,7 @@ describe('jstack-relink (#578)', () => {
     // jstack-relink reads config; on fresh install config returns empty → defaults to false
     run(`${path.join(installDir, 'bin', 'jstack-relink')}`, {
       JSTACK_INSTALL_DIR: installDir,
-      GSTACK_SKILLS_DIR: skillsDir,
+      JSTACK_SKILLS_DIR: skillsDir,
     });
     const entries = fs.readdirSync(skillsDir);
     // Should be flat names (relink defaults to false when config returns empty)
@@ -213,13 +213,13 @@ describe('jstack-relink (#578)', () => {
   });
 
   // SWITCH: prefix → no-prefix must clean up ALL jstack-* entries
-  test('switching prefix to no-prefix removes all jstack-\** entries completely', () => {
+  test('switching prefix to no-prefix removes all jstack-* entries completely', () => {
     setupMockInstall(['qa', 'ship', 'review', 'plan-ceo-review', 'jstack-upgrade']);
     // Start in prefix mode
     run(`${path.join(installDir, 'bin', 'jstack-config')} set skill_prefix true`);
     run(`${path.join(installDir, 'bin', 'jstack-relink')}`, {
       JSTACK_INSTALL_DIR: installDir,
-      GSTACK_SKILLS_DIR: skillsDir,
+      JSTACK_SKILLS_DIR: skillsDir,
     });
     let entries = fs.readdirSync(skillsDir);
     expect(entries.filter(e => !e.startsWith('jstack-'))).toEqual([]);
@@ -228,7 +228,7 @@ describe('jstack-relink (#578)', () => {
     run(`${path.join(installDir, 'bin', 'jstack-config')} set skill_prefix false`);
     run(`${path.join(installDir, 'bin', 'jstack-relink')}`, {
       JSTACK_INSTALL_DIR: installDir,
-      GSTACK_SKILLS_DIR: skillsDir,
+      JSTACK_SKILLS_DIR: skillsDir,
     });
     entries = fs.readdirSync(skillsDir);
     // Only flat names + jstack-upgrade (its real name)
@@ -244,7 +244,7 @@ describe('jstack-relink (#578)', () => {
     run(`${path.join(installDir, 'bin', 'jstack-config')} set skill_prefix false`);
     run(`${path.join(installDir, 'bin', 'jstack-relink')}`, {
       JSTACK_INSTALL_DIR: installDir,
-      GSTACK_SKILLS_DIR: skillsDir,
+      JSTACK_SKILLS_DIR: skillsDir,
     });
     let entries = fs.readdirSync(skillsDir);
     expect(entries.filter(e => e.startsWith('jstack-') && e !== 'jstack-upgrade')).toEqual([]);
@@ -253,10 +253,10 @@ describe('jstack-relink (#578)', () => {
     run(`${path.join(installDir, 'bin', 'jstack-config')} set skill_prefix true`);
     run(`${path.join(installDir, 'bin', 'jstack-relink')}`, {
       JSTACK_INSTALL_DIR: installDir,
-      GSTACK_SKILLS_DIR: skillsDir,
+      JSTACK_SKILLS_DIR: skillsDir,
     });
     entries = fs.readdirSync(skillsDir);
-    // Only jstack-\** names
+    // Only jstack-* names
     expect(entries.sort()).toEqual([
       'jstack-qa', 'jstack-review', 'jstack-ship', 'jstack-upgrade',
     ]);
@@ -271,7 +271,7 @@ describe('jstack-relink (#578)', () => {
     run(`${path.join(installDir, 'bin', 'jstack-config')} set skill_prefix true`);
     run(`${path.join(installDir, 'bin', 'jstack-relink')}`, {
       JSTACK_INSTALL_DIR: installDir,
-      GSTACK_SKILLS_DIR: skillsDir,
+      JSTACK_SKILLS_DIR: skillsDir,
     });
     expect(fs.existsSync(path.join(skillsDir, 'jstack-qa'))).toBe(true);
 
@@ -279,7 +279,7 @@ describe('jstack-relink (#578)', () => {
     run(`${path.join(installDir, 'bin', 'jstack-config')} set skill_prefix false`);
     run(`${path.join(installDir, 'bin', 'jstack-relink')}`, {
       JSTACK_INSTALL_DIR: installDir,
-      GSTACK_SKILLS_DIR: skillsDir,
+      JSTACK_SKILLS_DIR: skillsDir,
     });
 
     // Flat symlinks should exist, prefixed should be gone
@@ -291,7 +291,7 @@ describe('jstack-relink (#578)', () => {
   test('prints error when install dir missing', () => {
     const output = run(`${BIN}/jstack-relink`, {
       JSTACK_INSTALL_DIR: '/nonexistent/path/jstack',
-      GSTACK_SKILLS_DIR: '/nonexistent/path/skills',
+      JSTACK_SKILLS_DIR: '/nonexistent/path/skills',
     }, true);
     expect(output).toContain('setup');
   });
@@ -302,7 +302,7 @@ describe('jstack-relink (#578)', () => {
     run(`${path.join(installDir, 'bin', 'jstack-config')} set skill_prefix true`);
     run(`${path.join(installDir, 'bin', 'jstack-relink')}`, {
       JSTACK_INSTALL_DIR: installDir,
-      GSTACK_SKILLS_DIR: skillsDir,
+      JSTACK_SKILLS_DIR: skillsDir,
     });
     // jstack-upgrade should keep its name, NOT become jstack-jstack-upgrade
     expect(fs.existsSync(path.join(skillsDir, 'jstack-upgrade'))).toBe(true);
@@ -317,7 +317,7 @@ describe('jstack-relink (#578)', () => {
     // Run jstack-config set which should auto-trigger relink
     run(`${path.join(installDir, 'bin', 'jstack-config')} set skill_prefix true`, {
       JSTACK_INSTALL_DIR: installDir,
-      GSTACK_SKILLS_DIR: skillsDir,
+      JSTACK_SKILLS_DIR: skillsDir,
     });
     // If relink was triggered, symlinks should exist
     expect(fs.existsSync(path.join(skillsDir, 'jstack-qa'))).toBe(true);
@@ -372,7 +372,7 @@ describe('upgrade migrations', () => {
     // Run the migration (it calls jstack-relink internally)
     run(`bash ${path.join(MIGRATIONS_DIR, 'v0.15.2.0.sh')}`, {
       JSTACK_INSTALL_DIR: installDir,
-      GSTACK_SKILLS_DIR: skillsDir,
+      JSTACK_SKILLS_DIR: skillsDir,
     });
 
     // After migration: real directories with SKILL.md symlinks
@@ -398,7 +398,7 @@ describe('jstack-patch-names (#620/#578)', () => {
     run(`${path.join(installDir, 'bin', 'jstack-config')} set skill_prefix true`);
     run(`${path.join(installDir, 'bin', 'jstack-relink')}`, {
       JSTACK_INSTALL_DIR: installDir,
-      GSTACK_SKILLS_DIR: skillsDir,
+      JSTACK_SKILLS_DIR: skillsDir,
     });
     // Verify name: field is patched with jstack- prefix
     expect(readSkillName(path.join(installDir, 'qa'))).toBe('jstack-qa');
@@ -412,14 +412,14 @@ describe('jstack-patch-names (#620/#578)', () => {
     run(`${path.join(installDir, 'bin', 'jstack-config')} set skill_prefix true`);
     run(`${path.join(installDir, 'bin', 'jstack-relink')}`, {
       JSTACK_INSTALL_DIR: installDir,
-      GSTACK_SKILLS_DIR: skillsDir,
+      JSTACK_SKILLS_DIR: skillsDir,
     });
     expect(readSkillName(path.join(installDir, 'qa'))).toBe('jstack-qa');
     // Now switch to flat mode
     run(`${path.join(installDir, 'bin', 'jstack-config')} set skill_prefix false`);
     run(`${path.join(installDir, 'bin', 'jstack-relink')}`, {
       JSTACK_INSTALL_DIR: installDir,
-      GSTACK_SKILLS_DIR: skillsDir,
+      JSTACK_SKILLS_DIR: skillsDir,
     });
     // Verify name: field is restored to unprefixed
     expect(readSkillName(path.join(installDir, 'qa'))).toBe('qa');
@@ -431,7 +431,7 @@ describe('jstack-patch-names (#620/#578)', () => {
     run(`${path.join(installDir, 'bin', 'jstack-config')} set skill_prefix true`);
     run(`${path.join(installDir, 'bin', 'jstack-relink')}`, {
       JSTACK_INSTALL_DIR: installDir,
-      GSTACK_SKILLS_DIR: skillsDir,
+      JSTACK_SKILLS_DIR: skillsDir,
     });
     // jstack-upgrade should keep its name, NOT become jstack-jstack-upgrade
     expect(readSkillName(path.join(installDir, 'jstack-upgrade'))).toBe('jstack-upgrade');
@@ -447,7 +447,7 @@ describe('jstack-patch-names (#620/#578)', () => {
     // Should not crash
     run(`${path.join(installDir, 'bin', 'jstack-relink')}`, {
       JSTACK_INSTALL_DIR: installDir,
-      GSTACK_SKILLS_DIR: skillsDir,
+      JSTACK_SKILLS_DIR: skillsDir,
     });
     // Content should be unchanged (no name: to patch)
     const content = fs.readFileSync(path.join(installDir, 'qa', 'SKILL.md'), 'utf-8');

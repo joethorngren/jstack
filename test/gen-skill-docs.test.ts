@@ -815,7 +815,7 @@ describe('PLAN_FILE_REVIEW_REPORT resolver', () => {
   for (const skill of REVIEW_SKILLS) {
     test(`plan file review report appears in ${skill} generated file`, () => {
       const content = fs.readFileSync(path.join(ROOT, skill, 'SKILL.md'), 'utf-8');
-      expect(content).toContain('GSTACK REVIEW REPORT');
+      expect(content).toContain('JSTACK REVIEW REPORT');
     });
   }
 
@@ -995,9 +995,9 @@ describe('Retro plan completion section', () => {
 describe('Plan status footer in preamble', () => {
   test('preamble contains plan status footer', () => {
     // Read any skill that uses PREAMBLE
-    const content = fs.readFileSync(path.join(ROOT, 'brainstorm', 'SKILL.md'), 'utf-8');
+    const content = fs.readFileSync(path.join(ROOT, 'office-hours', 'SKILL.md'), 'utf-8');
     expect(content).toContain('Plan Status Footer');
-    expect(content).toContain('GSTACK REVIEW REPORT');
+    expect(content).toContain('JSTACK REVIEW REPORT');
     expect(content).toContain('jstack-review-read');
     expect(content).toContain('ExitPlanMode');
     expect(content).toContain('NO REVIEWS YET');
@@ -1008,7 +1008,7 @@ describe('Plan status footer in preamble', () => {
 
 describe('Skill invocation during plan mode in preamble', () => {
   test('preamble contains skill invocation plan mode section', () => {
-    const content = fs.readFileSync(path.join(ROOT, 'brainstorm', 'SKILL.md'), 'utf-8');
+    const content = fs.readFileSync(path.join(ROOT, 'office-hours', 'SKILL.md'), 'utf-8');
     expect(content).toContain('Skill Invocation During Plan Mode');
     expect(content).toContain('precedence over generic plan mode behavior');
     expect(content).toContain('Do not continue the workflow');
@@ -1019,7 +1019,7 @@ describe('Skill invocation during plan mode in preamble', () => {
 // --- {{SPEC_REVIEW_LOOP}} resolver tests ---
 
 describe('SPEC_REVIEW_LOOP resolver', () => {
-  const content = fs.readFileSync(path.join(ROOT, 'brainstorm', 'SKILL.md'), 'utf-8');
+  const content = fs.readFileSync(path.join(ROOT, 'office-hours', 'SKILL.md'), 'utf-8');
 
   test('contains all 5 review dimensions', () => {
     for (const dim of ['Completeness', 'Consistency', 'Clarity', 'Scope', 'Feasibility']) {
@@ -1055,7 +1055,7 @@ describe('SPEC_REVIEW_LOOP resolver', () => {
 // --- {{DESIGN_SKETCH}} resolver tests ---
 
 describe('DESIGN_SKETCH resolver', () => {
-  const content = fs.readFileSync(path.join(ROOT, 'brainstorm', 'SKILL.md'), 'utf-8');
+  const content = fs.readFileSync(path.join(ROOT, 'office-hours', 'SKILL.md'), 'utf-8');
 
   test('references DESIGN.md for design system constraints', () => {
     expect(content).toContain('DESIGN.md');
@@ -1085,7 +1085,7 @@ describe('DESIGN_SKETCH resolver', () => {
 // --- {{CODEX_SECOND_OPINION}} resolver tests ---
 
 describe('CODEX_SECOND_OPINION resolver', () => {
-  const content = fs.readFileSync(path.join(ROOT, 'brainstorm', 'SKILL.md'), 'utf-8');
+  const content = fs.readFileSync(path.join(ROOT, 'office-hours', 'SKILL.md'), 'utf-8');
   const codexContent = fs.readFileSync(path.join(ROOT, '.agents', 'skills', 'jstack-office-hours', 'SKILL.md'), 'utf-8');
 
   test('Phase 3.5 section appears in office-hours SKILL.md', () => {
@@ -1143,7 +1143,7 @@ describe('Codex filesystem boundary', () => {
     'ship',          // /ship — adversarial step resolver
     'plan-eng-review',  // outside voice resolver
     'plan-ceo-review',  // outside voice resolver
-    'brainstorm',     // second opinion resolver
+    'office-hours',     // second opinion resolver
   ];
 
   const BOUNDARY_MARKER = 'Do NOT read or execute any';
@@ -1201,12 +1201,12 @@ describe('BENEFITS_FROM resolver', () => {
 
   test('plan-ceo-review contains prerequisite skill offer', () => {
     expect(ceoContent).toContain('Prerequisite Skill Offer');
-    expect(ceoContent).toContain('/office-hours');
+    expect(ceoContent).toContain('/brainstorm');
   });
 
   test('plan-eng-review contains prerequisite skill offer', () => {
     expect(engContent).toContain('Prerequisite Skill Offer');
-    expect(engContent).toContain('/office-hours');
+    expect(engContent).toContain('/brainstorm');
   });
 
   test('offer includes graceful decline', () => {
@@ -1438,7 +1438,7 @@ describe('DESIGN_HARD_RULES resolver', () => {
 // --- Extended DESIGN_SKETCH resolver tests ---
 
 describe('DESIGN_SKETCH extended with outside voices', () => {
-  const content = fs.readFileSync(path.join(ROOT, 'brainstorm', 'SKILL.md'), 'utf-8');
+  const content = fs.readFileSync(path.join(ROOT, 'office-hours', 'SKILL.md'), 'utf-8');
 
   test('contains outside design voices step', () => {
     expect(content).toContain('Outside design voices');
@@ -2040,7 +2040,7 @@ describe('setup script validation', () => {
     expect(codexSection).toContain('create_codex_runtime_root');
     expect(codexSection).toContain('link_codex_skill_dirs');
     expect(codexSection).not.toContain('link_claude_skill_dirs');
-    expect(codexSection).not.toContain('ln -snf "$JSTACK_DIR" "$CODEX_GSTACK"');
+    expect(codexSection).not.toContain('ln -snf "$JSTACK_DIR" "$CODEX_JSTACK"');
   });
 
   test('Codex install prefers repo-local .agents/skills when setup runs from there', () => {
@@ -2055,7 +2055,7 @@ describe('setup script validation', () => {
     expect(setupContent).toContain('INSTALL_JSTACK_DIR=');
     expect(setupContent).toContain('SOURCE_JSTACK_DIR=');
     expect(setupContent).toContain('INSTALL_SKILLS_DIR=');
-    expect(setupContent).toContain('CODEX_GSTACK="$INSTALL_JSTACK_DIR"');
+    expect(setupContent).toContain('CODEX_JSTACK="$INSTALL_JSTACK_DIR"');
     expect(setupContent).toContain('link_codex_skill_dirs "$SOURCE_JSTACK_DIR" "$CODEX_SKILLS"');
   });
 
@@ -2229,7 +2229,7 @@ describe('setup script validation', () => {
 
   test('setup reads skill_prefix from config', () => {
     expect(setupContent).toContain('get skill_prefix');
-    expect(setupContent).toContain('GSTACK_CONFIG');
+    expect(setupContent).toContain('JSTACK_CONFIG');
   });
 
   test('setup supports --prefix flag', () => {
@@ -2533,7 +2533,7 @@ describe('codex commands must not use inline $(git rev-parse --show-toplevel) fo
 // ─── Learnings + Confidence Resolver Tests ─────────────────────
 
 describe('LEARNINGS_SEARCH resolver', () => {
-  const SEARCH_SKILLS = ['review', 'ship', 'plan-eng-review', 'investigate', 'brainstorm', 'plan-ceo-review'];
+  const SEARCH_SKILLS = ['review', 'ship', 'plan-eng-review', 'investigate', 'office-hours', 'plan-ceo-review'];
 
   for (const skill of SEARCH_SKILLS) {
     test(`${skill} generated SKILL.md contains learnings search`, () => {
@@ -2633,7 +2633,7 @@ describe('CONFIDENCE_CALIBRATION resolver', () => {
 
   test('skills without confidence calibration do NOT contain it', () => {
     // office-hours and retro do NOT use confidence calibration
-    for (const skill of ['brainstorm', 'retro']) {
+    for (const skill of ['office-hours', 'retro']) {
       const content = fs.readFileSync(path.join(ROOT, skill, 'SKILL.md'), 'utf-8');
       expect(content).not.toContain('## Confidence Calibration');
     }

@@ -317,7 +317,7 @@ describe('jstack-team-init', () => {
     run(`${TEAM_INIT} optional`, { cwd: tmpDir });
 
     const gitignore = fs.readFileSync(path.join(tmpDir, '.gitignore'), 'utf-8');
-    const matches = gitignore.match(/\.claude\/skills\/gstack\//g);
+    const matches = gitignore.match(/\.claude\/skills\/jstack\//g);
     expect(matches).toHaveLength(1);
   });
 });
