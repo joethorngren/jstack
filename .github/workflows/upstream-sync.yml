@@ -2,8 +2,8 @@ name: Upstream Sync
 
 on:
   schedule:
-    # Every Monday at 9:00 UTC
-    - cron: "0 9 * * 1"
+    # Nightly at 9:00 UTC
+    - cron: "0 9 * * *"
   workflow_dispatch:
     inputs:
       dry_run:

@@ -89,14 +89,14 @@ apply_renames() {
 
   # GitHub repo reference
   sedi \
-    -e 's|garrytan/gstack|joethorngren/jstack|g' \
+    -e 's|joethorngren/jstack|joethorngren/jstack|g' \
     "$f" 2>/dev/null || return 1
 
   # Environment variable names (uppercase)
   sedi \
-    -e 's|GSTACK_STATE_DIR|JSTACK_STATE_DIR|g' \
-    -e 's|GSTACK_ROOT|JSTACK_ROOT|g' \
-    -e 's|GSTACK_BIN|JSTACK_BIN|g' \
+    -e 's|JSTACK_STATE_DIR|JSTACK_STATE_DIR|g' \
+    -e 's|JSTACK_ROOT|JSTACK_ROOT|g' \
+    -e 's|JSTACK_BIN|JSTACK_BIN|g' \
     -e 's|GSTACK_BROWSE|JSTACK_BROWSE|g' \
     -e 's|GSTACK_DESIGN|JSTACK_DESIGN|g' \
     -e 's|GSTACK_SETUP_RUNNING|JSTACK_SETUP_RUNNING|g' \
@@ -111,25 +111,25 @@ apply_renames() {
 
   # Binary/script names: gstack-* → jstack-*
   sedi \
-    -e 's|gstack-config|jstack-config|g' \
-    -e 's|gstack-relink|jstack-relink|g' \
-    -e 's|gstack-patch-names|jstack-patch-names|g' \
-    -e 's|gstack-slug|jstack-slug|g' \
-    -e 's|gstack-repo-mode|jstack-repo-mode|g' \
-    -e 's|gstack-diff-scope|jstack-diff-scope|g' \
-    -e 's|gstack-global-discover|jstack-global-discover|g' \
-    -e 's|gstack-extension|jstack-extension|g' \
-    -e 's|gstack-learnings-log|jstack-learnings-log|g' \
-    -e 's|gstack-learnings-search|jstack-learnings-search|g' \
-    -e 's|gstack-open-url|jstack-open-url|g' \
-    -e 's|gstack-platform-detect|jstack-platform-detect|g' \
-    -e 's|gstack-review-log|jstack-review-log|g' \
-    -e 's|gstack-review-read|jstack-review-read|g' \
-    -e 's|gstack-timeline-log|jstack-timeline-log|g' \
+    -e 's|jstack-config|jstack-config|g' \
+    -e 's|jstack-relink|jstack-relink|g' \
+    -e 's|jstack-patch-names|jstack-patch-names|g' \
+    -e 's|jstack-slug|jstack-slug|g' \
+    -e 's|jstack-repo-mode|jstack-repo-mode|g' \
+    -e 's|jstack-diff-scope|jstack-diff-scope|g' \
+    -e 's|jstack-global-discover|jstack-global-discover|g' \
+    -e 's|jstack-extension|jstack-extension|g' \
+    -e 's|jstack-learnings-log|jstack-learnings-log|g' \
+    -e 's|jstack-learnings-search|jstack-learnings-search|g' \
+    -e 's|jstack-open-url|jstack-open-url|g' \
+    -e 's|jstack-platform-detect|jstack-platform-detect|g' \
+    -e 's|jstack-review-log|jstack-review-log|g' \
+    -e 's|jstack-review-read|jstack-review-read|g' \
+    -e 's|jstack-timeline-log|jstack-timeline-log|g' \
     -e 's|gstack-timeline-read|jstack-timeline-read|g' \
-    -e 's|gstack-uninstall|jstack-uninstall|g' \
-    -e 's|gstack-update-check|jstack-update-check|g' \
-    -e 's|gstack-init|jstack-init|g' \
+    -e 's|jstack-uninstall|jstack-uninstall|g' \
+    -e 's|jstack-update-check|jstack-update-check|g' \
+    -e 's|jstack-init|jstack-init|g' \
     "$f" 2>/dev/null || return 1
 
   # Skill directory rename

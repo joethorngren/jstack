@@ -222,7 +222,7 @@ describe('Generated SKILL.md freshness', () => {
   });
 });
 
-// --- Version check preamble validation (jstack: local-only, no remote update check) ---
+// --- Preamble validation (upstream-aligned: update-check + session tracking) ---
 
 describe('Version check preamble', () => {
   const skillsWithPreamble = [
@@ -245,11 +245,11 @@ describe('Version check preamble', () => {
   ];
 
   for (const skill of skillsWithPreamble) {
-    test(`${skill} uses local version check (cat VERSION)`, () => {
+    test(`${skill} has update-check in preamble`, () => {
       const content = fs.readFileSync(path.join(ROOT, skill), 'utf-8');
-      // jstack uses local version check, not remote update-check binary
-      expect(content).toContain('VERSION');
-      expect(content).not.toContain('jstack-update-check');
+      // Upstream preamble uses update-check binary
+      expect(content).toContain('jstack-update-check');
+      expect(content).toContain('jstack-config');
     });
   }
 
@@ -1396,8 +1396,10 @@ describe('Codex skill validation', () => {
     return skills;
   })();
 
-  test('all skills (except /codex) have both Claude and Codex variants', () => {
+  test('all generated skills (except /codex and compatibility aliases) have both Claude and Codex variants', () => {
+    const setupOnlyAliases = new Set(['connect-chrome', 'open-gstack-browser']);
     for (const skillDir of CLAUDE_SKILLS_WITH_TEMPLATES) {
+      if (setupOnlyAliases.has(skillDir)) continue;
       // Claude variant
       const claudeMd = path.join(ROOT, skillDir, 'SKILL.md');
       expect(fs.existsSync(claudeMd)).toBe(true);
@@ -1498,6 +1500,26 @@ describe('Test failure triage in ship skill', () => {
   test('ship/SKILL.md uses in-branch language for stop condition', () => {
     const content = fs.readFileSync(path.join(ROOT, 'ship', 'SKILL.md'), 'utf-8');
     expect(content).toContain('In-branch test failures');
+  });
+});
+
+describe('no compiled binaries in git', () => {
+  test('git tracks no Mach-O or ELF binaries', () => {
+    const result = require('child_process').execSync(
+      'git ls-files -z | xargs -0 file --mime-type 2>/dev/null | grep -E "application/(x-mach-binary|x-executable|x-pie-executable|x-sharedlib)" || true',
+      { cwd: ROOT, encoding: 'utf-8' }
+    ).trim();
+    const files = result ? result.split('\n').map((l: string) => l.split(':')[0].trim()) : [];
+    expect(files).toEqual([]);
+  });
+
+  test('git tracks no files larger than 2MB', () => {
+    const result = require('child_process').execSync(
+      'git ls-files -z | xargs -0 -I{} sh -c \'size=$(wc -c < "{}" 2>/dev/null | tr -d " "); [ "$size" -gt 2097152 ] 2>/dev/null && echo "{}:${size}"\' || true',
+      { cwd: ROOT, encoding: 'utf-8' }
+    ).trim();
+    const files = result ? result.split('\n').filter(Boolean) : [];
+    expect(files).toEqual([]);
   });
 });
 
