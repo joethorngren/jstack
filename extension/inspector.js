@@ -1,5 +1,5 @@
 /**
- * jstack browse — CSS Inspector content script
+ * gstack browse — CSS Inspector content script
  *
  * Dynamically injected via chrome.scripting.executeScript.
  * Provides element picker, selector generation, basic computed style capture,
@@ -8,8 +8,8 @@
 
 (() => {
   // Guard against double-injection
-  if (window.__jstackInspectorActive) return;
-  window.__jstackInspectorActive = true;
+  if (window.__gstackInspectorActive) return;
+  window.__gstackInspectorActive = true;
 
   // ─── State ──────────────────────────────────────────────────────
   let pickerActive = false;
@@ -28,7 +28,7 @@
     if (highlightEl) return;
 
     highlightEl = document.createElement('div');
-    highlightEl.id = 'jstack-inspector-highlight';
+    highlightEl.id = 'gstack-inspector-highlight';
     highlightEl.style.cssText = `
       position: fixed;
       pointer-events: none;
@@ -41,7 +41,7 @@
     document.documentElement.appendChild(highlightEl);
 
     tooltipEl = document.createElement('div');
-    tooltipEl.id = 'jstack-inspector-tooltip';
+    tooltipEl.id = 'gstack-inspector-tooltip';
     tooltipEl.style.cssText = `
       position: fixed;
       pointer-events: none;
@@ -260,7 +260,7 @@
     // Ignore our own overlay elements
     const target = e.target;
     if (target === highlightEl || target === tooltipEl) return;
-    if (target.id === 'jstack-inspector-highlight' || target.id === 'jstack-inspector-tooltip') return;
+    if (target.id === 'gstack-inspector-highlight' || target.id === 'gstack-inspector-tooltip') return;
 
     updateHighlight(target);
   }
@@ -279,7 +279,7 @@
 
     const target = e.target;
     if (target === highlightEl || target === tooltipEl) return;
-    if (target.id === 'jstack-inspector-highlight' || target.id === 'jstack-inspector-tooltip') return;
+    if (target.id === 'gstack-inspector-highlight' || target.id === 'gstack-inspector-tooltip') return;
 
     const selector = buildSelector(target);
     const basicData = captureBasicData(target);
@@ -355,6 +355,10 @@
   function applyStyle(selector, property, value) {
     // Validate property name: alphanumeric + hyphens only
     if (!/^[a-zA-Z-]+$/.test(property)) return { error: 'Invalid property name' };
+    // Validate CSS value: block exfiltration vectors (url(), expression(), @import, javascript:, data:)
+    if (/url\s*\(|expression\s*\(|@import|javascript:|data:/i.test(value)) {
+      return { error: 'CSS value contains blocked pattern' };
+    }
 
     const el = findElement(selector);
     if (!el) return { error: 'Element not found' };
@@ -373,6 +377,9 @@
   }
 
   function toggleClass(selector, className, action) {
+    if (!/^[a-zA-Z0-9_-]+$/.test(className)) {
+      return { error: 'Invalid class name' };
+    }
     const el = findElement(selector);
     if (!el) return { error: 'Element not found' };
 
@@ -387,7 +394,13 @@
   }
 
   function injectCSS(id, css) {
-    const styleId = `jstack-inject-${id}`;
+    if (!/^[a-zA-Z0-9_-]+$/.test(id)) {
+      return { error: 'Invalid CSS injection id' };
+    }
+    if (/url\s*\(|expression\s*\(|@import|javascript:|data:/i.test(css)) {
+      return { error: 'CSS contains blocked pattern (url, expression, @import)' };
+    }
+    const styleId = `gstack-inject-${id}`;
     let styleEl = document.getElementById(styleId);
     if (!styleEl) {
       styleEl = document.createElement('style');

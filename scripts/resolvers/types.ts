@@ -1,4 +1,11 @@
-export type Host = 'claude' | 'codex' | 'factory' | 'cursor';
+import { ALL_HOST_CONFIGS } from '../../hosts/index';
+
+/**
+ * Host type — derived from host configs in hosts/*.ts.
+ * Adding a new host: create hosts/myhost.ts + add to hosts/index.ts.
+ * Do NOT hardcode host names here.
+ */
+export type Host = (typeof ALL_HOST_CONFIGS)[number]['name'];
 
 export interface HostPaths {
   skillRoot: string;
@@ -8,36 +15,37 @@ export interface HostPaths {
   designDir: string;
 }
 
-export const HOST_PATHS: Record<Host, HostPaths> = {
-  claude: {
-    skillRoot: '~/.claude/skills/jstack',
-    localSkillRoot: '.claude/skills/jstack',
-    binDir: '~/.claude/skills/jstack/bin',
-    browseDir: '~/.claude/skills/jstack/browse/dist',
-    designDir: '~/.claude/skills/jstack/design/dist',
-  },
-  codex: {
-    skillRoot: '$JSTACK_ROOT',
-    localSkillRoot: '.agents/skills/jstack',
-    binDir: '$JSTACK_BIN',
-    browseDir: '$JSTACK_BROWSE',
-    designDir: '$JSTACK_DESIGN',
-  },
-  factory: {
-    skillRoot: '$JSTACK_ROOT',
-    localSkillRoot: '.factory/skills/jstack',
-    binDir: '$JSTACK_BIN',
-    browseDir: '$JSTACK_BROWSE',
-    designDir: '$JSTACK_DESIGN',
-  },
-  cursor: {
-    skillRoot: '.cursor/rules',
-    localSkillRoot: '.cursor/rules',
-    binDir: '',     // N/A — Cursor uses MCP, not direct binary calls
-    browseDir: '',  // N/A — browse exposed via MCP server
-    designDir: '',  // N/A
-  },
-};
+/**
+ * HOST_PATHS — derived from host configs.
+ * Each config's globalRoot/localSkillRoot determines the path structure.
+ * Non-Claude hosts use $GSTACK_ROOT env vars (set by preamble).
+ */
+function buildHostPaths(): Record<string, HostPaths> {
+  const paths: Record<string, HostPaths> = {};
+  for (const config of ALL_HOST_CONFIGS) {
+    if (config.usesEnvVars) {
+      paths[config.name] = {
+        skillRoot: '$GSTACK_ROOT',
+        localSkillRoot: config.localSkillRoot,
+        binDir: '$GSTACK_BIN',
+        browseDir: '$GSTACK_BROWSE',
+        designDir: '$GSTACK_DESIGN',
+      };
+    } else {
+      const root = `~/${config.globalRoot}`;
+      paths[config.name] = {
+        skillRoot: root,
+        localSkillRoot: config.localSkillRoot,
+        binDir: `${root}/bin`,
+        browseDir: `${root}/browse/dist`,
+        designDir: `${root}/design/dist`,
+      };
+    }
+  }
+  return paths;
+}
+
+export const HOST_PATHS: Record<string, HostPaths> = buildHostPaths();
 
 export interface TemplateContext {
   skillName: string;
