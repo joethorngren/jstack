@@ -63,8 +63,16 @@ jstack/
 │   │   └── snapshot.ts  # SNAPSHOT_FLAGS metadata array
 │   ├── test/        # Integration tests + fixtures
 │   └── dist/        # Compiled binary
+├── hosts/           # Typed host configs (one per AI agent)
+│   ├── claude.ts    # Primary host config
+│   ├── codex.ts, factory.ts, kiro.ts  # Existing hosts
+│   ├── opencode.ts, slate.ts, cursor.ts, openclaw.ts  # New hosts
+│   └── index.ts     # Registry: exports all, derives Host type
 ├── scripts/         # Build + DX tooling
-│   ├── gen-skill-docs.ts  # Template → SKILL.md generator
+│   ├── gen-skill-docs.ts  # Template → SKILL.md generator (config-driven)
+│   ├── host-config.ts     # HostConfig interface + validator
+│   ├── host-config-export.ts  # Shell bridge for setup script
+│   ├── host-adapters/     # Host-specific adapters (OpenClaw tool mapping)
 │   ├── resolvers/   # Template resolver modules (preamble, design, review, etc.)
 │   ├── skill-check.ts     # Health dashboard
 │   └── dev-skill.ts       # Watch mode
@@ -87,7 +95,7 @@ jstack/
 ├── canary/          # /canary skill (post-deploy monitoring loop)
 ├── codex/           # /codex skill (multi-AI second opinion via OpenAI Codex CLI)
 ├── land-and-deploy/ # /land-and-deploy skill (merge → deploy → canary verify)
-├── brainstorm/    # /brainstorm skill (startup diagnostic + builder brainstorm)
+├── brainstorm/    # /brainstorm skill (YC Office Hours — startup diagnostic + builder brainstorm)
 ├── investigate/     # /investigate skill (systematic root-cause debugging)
 ├── retro/           # Retrospective skill (includes /retro global cross-project mode)
 ├── bin/             # CLI utilities (jstack-repo-mode, jstack-slug, jstack-config, etc.)
@@ -95,7 +103,8 @@ jstack/
 ├── cso/             # /cso skill (OWASP Top 10 + STRIDE security audit)
 ├── design-consultation/ # /design-consultation skill (design system from scratch)
 ├── design-shotgun/  # /design-shotgun skill (visual design exploration)
-├── connect-chrome/  # /connect-chrome skill (headed Chrome with side panel)
+├── open-jstack-browser/  # /open-jstack-browser skill (launch GStack Browser)
+├── connect-chrome/  # symlink → open-jstack-browser (backwards compat)
 ├── design/          # Design binary CLI (GPT Image API)
 │   ├── src/         # CLI + commands (generate, variants, compare, serve, etc.)
 │   ├── test/        # Integration tests
@@ -107,6 +116,8 @@ jstack/
 ├── .github/         # CI workflows + Docker image
 │   ├── workflows/   # evals.yml (E2E on Ubicloud), skill-docs.yml, actionlint.yml
 │   └── docker/      # Dockerfile.ci (pre-baked toolchain + Playwright/Chromium)
+├── contrib/         # Contributor-only tools (never installed for users)
+│   └── add-host/    # /jstack-contrib-add-host skill
 ├── setup            # One-time setup: build binary + symlink skills
 ├── SKILL.md         # Generated from SKILL.md.tmpl (don't edit directly)
 ├── SKILL.md.tmpl    # Template: edit this, run gen:skill-docs
@@ -167,10 +178,18 @@ When you need to interact with a browser (QA, dogfooding, cookie setup), use the
 `mcp__claude-in-chrome__*` tools — they are slow, unreliable, and not what this
 project uses.
 
-## Vendored symlink awareness
+**Sidebar architecture:** Before modifying `sidepanel.js`, `background.js`,
+`content.js`, `sidebar-agent.ts`, or sidebar-related server endpoints, read
+`docs/designs/SIDEBAR_MESSAGE_FLOW.md`. It documents the full initialization
+timeline, message flow, auth token chain, tab concurrency model, and known
+failure modes. The sidebar spans 5 files across 2 codebases (extension + server)
+with non-obvious ordering dependencies. The doc exists to prevent the kind of
+silent failures that come from not understanding the cross-component flow.
+
+## Dev symlink awareness
 
 When developing jstack, `.claude/skills/jstack` may be a symlink back to this
-working directory (gitignored). This means skill changes are **live immediately** —
+working directory (gitignored). This means skill changes are **live immediately**,
 great for rapid iteration, risky during big refactors where half-written skills
 could break other Claude Code sessions using jstack concurrently.
 
@@ -181,15 +200,25 @@ symlink or a real copy. If it's a symlink to your working directory, be aware th
 - During large refactors, remove the symlink (`rm .claude/skills/jstack`) so the
   global install at `~/.claude/skills/jstack/` is used instead
 
-**Prefix setting:** Skill symlinks use either short names (`qa -> jstack/qa`) or
-namespaced (`jstack-qa -> jstack/qa`), controlled by `skill_prefix` in
-`~/.jstack/config.yaml`. When vendoring into a project, run `./setup` after
-symlinking to create the per-skill symlinks with your preferred naming. Pass
-`--no-prefix` or `--prefix` to skip the interactive prompt.
+**Prefix setting:** Setup creates real directories (not symlinks) at the top level
+with a SKILL.md symlink inside (e.g., `qa/SKILL.md -> jstack/qa/SKILL.md`). This
+ensures Claude discovers them as top-level skills, not nested under `jstack/`.
+Names are either short (`qa`) or namespaced (`jstack-qa`), controlled by
+`skill_prefix` in `~/.jstack/config.yaml`. Pass `--no-prefix` or `--prefix` to
+skip the interactive prompt.
+
+**Note:** Vendoring jstack into a project's repo is deprecated. Use global install
++ `./setup --team` instead. See README.md for team mode instructions.
 
 **For plan reviews:** When reviewing plans that modify skill templates or the
 gen-skill-docs pipeline, consider whether the changes should be tested in isolation
 before going live (especially if the user is actively using jstack in other windows).
+
+**Upgrade migrations:** When a change modifies on-disk state (directory structure,
+config format, stale files) in ways that could break existing user installs, add a
+migration script to `jstack-upgrade/migrations/`. Read CONTRIBUTING.md's "Upgrade
+migrations" section for the format and testing requirements. The upgrade skill runs
+these automatically after `./setup` during `/jstack-upgrade`.
 
 ## Compiled binaries — NEVER commit browse/dist/ or design/dist/
 
@@ -220,6 +249,24 @@ Examples of good bisection:
 
 When the user says "bisect commit" or "bisect and push," split staged/unstaged
 changes into logical commits and push.
+
+## Community PR guardrails
+
+When reviewing or merging community PRs, **always AskUserQuestion** before accepting
+any commit that:
+
+1. **Touches ETHOS.md** — this file is Garry's personal builder philosophy. No edits
+   from external contributors or AI agents, period.
+2. **Removes or softens promotional material** — YC references, founder perspective,
+   and product voice are intentional. PRs that frame these as "unnecessary" or
+   "too promotional" must be rejected.
+3. **Changes Garry's voice** — the tone, humor, directness, and perspective in skill
+   templates, CHANGELOG, and docs are not generic. PRs that rewrite voice to be
+   more "neutral" or "professional" must be rejected.
+
+Even if the agent strongly believes a change improves the project, these three
+categories require explicit user approval via AskUserQuestion. No exceptions.
+No auto-merging. No "I'll just clean this up."
 
 ## CHANGELOG + VERSION style
 
@@ -355,6 +402,29 @@ Also when running targeted E2E tests to debug failures:
 - Run in **foreground** (`bun test ...`), not background with `&` and `tee`
 - Never `pkill` running eval processes and restart — you lose results and waste money
 - One clean run beats three killed-and-restarted runs
+
+## Publishing native OpenClaw skills to ClawHub
+
+Native OpenClaw skills live in `openclaw/skills/jstack-openclaw-*/SKILL.md`. These are
+hand-crafted methodology skills (not generated by the pipeline) published to ClawHub
+so any OpenClaw user can install them.
+
+**Publishing:** The command is `clawhub publish` (NOT `clawhub skill publish`):
+
+```bash
+clawhub publish openclaw/skills/jstack-openclaw-office-hours \
+  --slug jstack-openclaw-office-hours --name "jstack Office Hours" \
+  --version 1.0.0 --changelog "description of changes"
+```
+
+Repeat for each skill: `jstack-openclaw-ceo-review`, `jstack-openclaw-investigate`,
+`jstack-openclaw-retro`. Bump `--version` on each update.
+
+**Auth:** `clawhub login` (opens browser for GitHub auth). `clawhub whoami` to verify.
+
+**Updating:** Same `clawhub publish` command with a higher `--version` and `--changelog`.
+
+**Verification:** `clawhub search jstack` to confirm they're live.
 
 ## Deploying to the active skill
 
