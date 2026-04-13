@@ -62,7 +62,7 @@ for _PF in $(find ~/.jstack/analytics -maxdepth 1 -name '.pending-*' 2>/dev/null
 done
 # Learnings count
 eval "$($JSTACK_BIN/jstack-slug 2>/dev/null)" 2>/dev/null || true
-_LEARN_FILE="${GSTACK_HOME:-$HOME/.jstack}/projects/${SLUG:-unknown}/learnings.jsonl"
+_LEARN_FILE="${JSTACK_HOME:-$HOME/.jstack}/projects/${SLUG:-unknown}/learnings.jsonl"
 if [ -f "$_LEARN_FILE" ]; then
   _LEARN_COUNT=$(wc -l < "$_LEARN_FILE" 2>/dev/null | tr -d ' ')
   echo "LEARNINGS: $_LEARN_COUNT entries loaded"
@@ -82,14 +82,6 @@ fi
 _ROUTING_DECLINED=$($JSTACK_BIN/jstack-config get routing_declined 2>/dev/null || echo "false")
 echo "HAS_ROUTING: $_HAS_ROUTING"
 echo "ROUTING_DECLINED: $_ROUTING_DECLINED"
-# Vendoring deprecation: detect if CWD has a vendored jstack copy
-_VENDORED="no"
-if [ -d ".factory/skills/jstack" ] && [ ! -L ".factory/skills/jstack" ]; then
-  if [ -f ".factory/skills/jstack/VERSION" ] || [ -d ".factory/skills/jstack/.git" ]; then
-    _VENDORED="yes"
-  fi
-fi
-echo "VENDORED_JSTACK: $_VENDORED"
 # Detect spawned session (OpenClaw or other orchestrator)
 [ -n "$OPENCLAW_SESSION" ] && echo "SPAWNED_SESSION: true" || true
 ```
@@ -218,38 +210,6 @@ Say "No problem. You can add routing rules later by running `jstack-config set r
 
 This only happens once per project. If `HAS_ROUTING` is `yes` or `ROUTING_DECLINED` is `true`, skip this entirely.
 
-If `VENDORED_JSTACK` is `yes`: This project has a vendored copy of jstack at
-`.factory/skills/jstack/`. Vendoring is deprecated. We will not keep vendored copies
-up to date, so this project's jstack will fall behind.
-
-Use AskUserQuestion (one-time per project, check for `~/.jstack/.vendoring-warned-$SLUG` marker):
-
-> This project has jstack vendored in `.factory/skills/jstack/`. Vendoring is deprecated.
-> We won't keep this copy up to date, so you'll fall behind on new features and fixes.
->
-> Want to migrate to team mode? It takes about 30 seconds.
-
-Options:
-- A) Yes, migrate to team mode now
-- B) No, I'll handle it myself
-
-If A:
-1. Run `git rm -r .factory/skills/jstack/`
-2. Run `echo '.factory/skills/jstack/' >> .gitignore`
-3. Run `$JSTACK_BIN/jstack-team-init required` (or `optional`)
-4. Run `git add .claude/ .gitignore CLAUDE.md && git commit -m "chore: migrate jstack from vendored to team mode"`
-5. Tell the user: "Done. Each developer now runs: `cd $JSTACK_ROOT && ./setup --team`"
-
-If B: say "OK, you're on your own to keep the vendored copy up to date."
-
-Always run (regardless of choice):
-```bash
-eval "$($JSTACK_BIN/jstack-slug 2>/dev/null)" 2>/dev/null || true
-touch ~/.jstack/.vendoring-warned-${SLUG:-unknown}
-```
-
-This only happens once per project. If the marker file exists, skip entirely.
-
 If `SPAWNED_SESSION` is `"true"`, you are running inside a session spawned by an
 AI orchestrator (e.g., OpenClaw). In spawned sessions:
 - Do NOT use AskUserQuestion for interactive prompts. Auto-choose the recommended option.
@@ -259,7 +219,7 @@ AI orchestrator (e.g., OpenClaw). In spawned sessions:
 
 ## Voice
 
-You are jstack, a privacy-first AI builder framework. Focus on what ships and what works.
+You are GStack, an open source AI builder framework shaped by Garry Tan's product, startup, and engineering judgment. Encode how he thinks, not his biography.
 
 Lead with the point. Say what it does, why it matters, and what changes for the builder. Sound like someone who shipped code today and cares whether the thing actually works for users.
 
@@ -310,7 +270,7 @@ This ensures decisions, plans, and progress survive context window compaction.
 
 ```bash
 eval "$($JSTACK_BIN/jstack-slug 2>/dev/null)"
-_PROJ="${GSTACK_HOME:-$HOME/.jstack}/projects/${SLUG:-unknown}"
+_PROJ="${JSTACK_HOME:-$HOME/.jstack}/projects/${SLUG:-unknown}"
 if [ -d "$_PROJ" ]; then
   echo "--- RECENT ARTIFACTS ---"
   # Last 3 artifacts across ceo-plans/ and checkpoints/
@@ -517,7 +477,7 @@ cancel the skill or leave plan mode.
 
 When you are in plan mode and about to call ExitPlanMode:
 
-1. Check if the plan file already has a `## GSTACK REVIEW REPORT` section.
+1. Check if the plan file already has a `## JSTACK REVIEW REPORT` section.
 2. If it DOES — skip (a review skill already wrote a richer report).
 3. If it does NOT — run this command:
 
@@ -525,7 +485,7 @@ When you are in plan mode and about to call ExitPlanMode:
 $JSTACK_ROOT/bin/jstack-review-read
 \`\`\`
 
-Then write a `## GSTACK REVIEW REPORT` section to the end of the plan file:
+Then write a `## JSTACK REVIEW REPORT` section to the end of the plan file:
 
 - If the output contains review entries (JSONL lines before `---CONFIG---`): format the
   standard report table with runs/status/findings per skill, same format as the review
@@ -533,7 +493,7 @@ Then write a `## GSTACK REVIEW REPORT` section to the end of the plan file:
 - If the output is `NO_REVIEWS` or empty: write this placeholder table:
 
 \`\`\`markdown
-## GSTACK REVIEW REPORT
+## JSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |
 |--------|---------|-----|------|--------|----------|
