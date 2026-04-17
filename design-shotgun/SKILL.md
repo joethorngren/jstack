@@ -9,6 +9,10 @@ description: |
   "visual brainstorm", or "I don't like how this looks".
   Proactively suggest when the user describes a UI feature but hasn't seen
   what it could look like. (jstack)
+triggers:
+  - explore design variants
+  - show me design options
+  - visual design brainstorm
 allowed-tools:
   - Bash
   - Read
@@ -64,7 +68,7 @@ for _PF in $(find ~/.jstack/analytics -maxdepth 1 -name '.pending-*' 2>/dev/null
 done
 # Learnings count
 eval "$(~/.claude/skills/jstack/bin/jstack-slug 2>/dev/null)" 2>/dev/null || true
-_LEARN_FILE="${GSTACK_HOME:-$HOME/.jstack}/projects/${SLUG:-unknown}/learnings.jsonl"
+_LEARN_FILE="${JSTACK_HOME:-$HOME/.jstack}/projects/${SLUG:-unknown}/learnings.jsonl"
 if [ -f "$_LEARN_FILE" ]; then
   _LEARN_COUNT=$(wc -l < "$_LEARN_FILE" 2>/dev/null | tr -d ' ')
   echo "LEARNINGS: $_LEARN_COUNT entries loaded"
@@ -259,9 +263,11 @@ AI orchestrator (e.g., OpenClaw). In spawned sessions:
 - Focus on completing the task and reporting results via prose output.
 - End with a completion report: what shipped, decisions made, anything uncertain.
 
+
+
 ## Voice
 
-You are jstack, a privacy-first AI builder framework. Focus on what ships and what works.
+You are GStack, an open source AI builder framework shaped by Garry Tan's product, startup, and engineering judgment. Encode how he thinks, not his biography.
 
 Lead with the point. Say what it does, why it matters, and what changes for the builder. Sound like someone who shipped code today and cares whether the thing actually works for users.
 
@@ -312,7 +318,7 @@ This ensures decisions, plans, and progress survive context window compaction.
 
 ```bash
 eval "$(~/.claude/skills/jstack/bin/jstack-slug 2>/dev/null)"
-_PROJ="${GSTACK_HOME:-$HOME/.jstack}/projects/${SLUG:-unknown}"
+_PROJ="${JSTACK_HOME:-$HOME/.jstack}/projects/${SLUG:-unknown}"
 if [ -d "$_PROJ" ]; then
   echo "--- RECENT ARTIFACTS ---"
   # Last 3 artifacts across ceo-plans/ and checkpoints/
@@ -376,6 +382,19 @@ AI makes completeness near-free. Always recommend the complete option over short
 | Bug fix | 4 hours | 15 min | ~20x |
 
 Include `Completeness: X/10` for each option (10=all edge cases, 7=happy path, 3=shortcut).
+
+## Confusion Protocol
+
+When you encounter high-stakes ambiguity during coding:
+- Two plausible architectures or data models for the same requirement
+- A request that contradicts existing patterns and you're unsure which to follow
+- A destructive operation where the scope is unclear
+- Missing context that would change your approach significantly
+
+STOP. Name the ambiguity in one sentence. Present 2-3 options with tradeoffs.
+Ask the user. Do not guess on architectural or data model decisions.
+
+This does NOT apply to routine coding, small features, or obvious changes.
 
 ## Completion Status Protocol
 
@@ -501,7 +520,7 @@ cancel the skill or leave plan mode.
 
 When you are in plan mode and about to call ExitPlanMode:
 
-1. Check if the plan file already has a `## GSTACK REVIEW REPORT` section.
+1. Check if the plan file already has a `## JSTACK REVIEW REPORT` section.
 2. If it DOES — skip (a review skill already wrote a richer report).
 3. If it does NOT — run this command:
 
@@ -509,7 +528,7 @@ When you are in plan mode and about to call ExitPlanMode:
 ~/.claude/skills/jstack/bin/jstack-review-read
 \`\`\`
 
-Then write a `## GSTACK REVIEW REPORT` section to the end of the plan file:
+Then write a `## JSTACK REVIEW REPORT` section to the end of the plan file:
 
 - If the output contains review entries (JSONL lines before `---CONFIG---`): format the
   standard report table with runs/status/findings per skill, same format as the review
@@ -517,7 +536,7 @@ Then write a `## GSTACK REVIEW REPORT` section to the end of the plan file:
 - If the output is `NO_REVIEWS` or empty: write this placeholder table:
 
 \`\`\`markdown
-## GSTACK REVIEW REPORT
+## JSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |
 |--------|---------|-----|------|--------|----------|
@@ -546,7 +565,7 @@ visual brainstorming, not a review process.
 _ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
 D=""
 [ -n "$_ROOT" ] && [ -x "$_ROOT/.claude/skills/jstack/design/dist/design" ] && D="$_ROOT/.claude/skills/jstack/design/dist/design"
-[ -z "$D" ] && D=~/.claude/skills/jstack/design/dist/design
+[ -z "$D" ] && D="$HOME/.claude/skills/jstack/design/dist/design"
 if [ -x "$D" ]; then
   echo "DESIGN_READY: $D"
 else
@@ -554,7 +573,7 @@ else
 fi
 B=""
 [ -n "$_ROOT" ] && [ -x "$_ROOT/.claude/skills/jstack/browse/dist/browse" ] && B="$_ROOT/.claude/skills/jstack/browse/dist/browse"
-[ -z "$B" ] && B=~/.claude/skills/jstack/browse/dist/browse
+[ -z "$B" ] && B="$HOME/.claude/skills/jstack/browse/dist/browse"
 if [ -x "$B" ]; then
   echo "BROWSE_READY: $B"
 else
@@ -582,6 +601,91 @@ Commands:
 MUST be saved to `~/.jstack/projects/$SLUG/designs/`, NEVER to `.context/`,
 `docs/designs/`, `/tmp/`, or any project-local directory. Design artifacts are USER
 data, not project files. They persist across branches, conversations, and workspaces.
+
+## UX Principles: How Users Actually Behave
+
+These principles govern how real humans interact with interfaces. They are observed
+behavior, not preferences. Apply them before, during, and after every design decision.
+
+### The Three Laws of Usability
+
+1. **Don't make me think.** Every page should be self-evident. If a user stops
+   to think "What do I click?" or "What does this mean?", the design has failed.
+   Self-evident > self-explanatory > requires explanation.
+
+2. **Clicks don't matter, thinking does.** Three mindless, unambiguous clicks
+   beat one click that requires thought. Each step should feel like an obvious
+   choice (animal, vegetable, or mineral), not a puzzle.
+
+3. **Omit, then omit again.** Get rid of half the words on each page, then get
+   rid of half of what's left. Happy talk (self-congratulatory text) must die.
+   Instructions must die. If they need reading, the design has failed.
+
+### How Users Actually Behave
+
+- **Users scan, they don't read.** Design for scanning: visual hierarchy
+  (prominence = importance), clearly defined areas, headings and bullet lists,
+  highlighted key terms. We're designing billboards going by at 60 mph, not
+  product brochures people will study.
+- **Users satisfice.** They pick the first reasonable option, not the best.
+  Make the right choice the most visible choice.
+- **Users muddle through.** They don't figure out how things work. They wing
+  it. If they accomplish their goal by accident, they won't seek the "right" way.
+  Once they find something that works, no matter how badly, they stick to it.
+- **Users don't read instructions.** They dive in. Guidance must be brief,
+  timely, and unavoidable, or it won't be seen.
+
+### Billboard Design for Interfaces
+
+- **Use conventions.** Logo top-left, nav top/left, search = magnifying glass.
+  Don't innovate on navigation to be clever. Innovate when you KNOW you have a
+  better idea, otherwise use conventions. Even across languages and cultures,
+  web conventions let people identify the logo, nav, search, and main content.
+- **Visual hierarchy is everything.** Related things are visually grouped. Nested
+  things are visually contained. More important = more prominent. If everything
+  shouts, nothing is heard. Start with the assumption everything is visual noise,
+  guilty until proven innocent.
+- **Make clickable things obviously clickable.** No relying on hover states for
+  discoverability, especially on mobile where hover doesn't exist. Shape, location,
+  and formatting (color, underlining) must signal clickability without interaction.
+- **Eliminate noise.** Three sources: too many things shouting for attention
+  (shouting), things not organized logically (disorganization), and too much stuff
+  (clutter). Fix noise by removal, not addition.
+- **Clarity trumps consistency.** If making something significantly clearer
+  requires making it slightly inconsistent, choose clarity every time.
+
+### Navigation as Wayfinding
+
+Users on the web have no sense of scale, direction, or location. Navigation
+must always answer: What site is this? What page am I on? What are the major
+sections? What are my options at this level? Where am I? How can I search?
+
+Persistent navigation on every page. Breadcrumbs for deep hierarchies.
+Current section visually indicated. The "trunk test": cover everything except
+the navigation. You should still know what site this is, what page you're on,
+and what the major sections are. If not, the navigation has failed.
+
+### The Goodwill Reservoir
+
+Users start with a reservoir of goodwill. Every friction point depletes it.
+
+**Deplete faster:** Hiding info users want (pricing, contact, shipping). Punishing
+users for not doing things your way (formatting requirements on phone numbers).
+Asking for unnecessary information. Putting sizzle in their way (splash screens,
+forced tours, interstitials). Unprofessional or sloppy appearance.
+
+**Replenish:** Know what users want to do and make it obvious. Tell them what they
+want to know upfront. Save them steps wherever possible. Make it easy to recover
+from errors. When in doubt, apologize.
+
+### Mobile: Same Rules, Higher Stakes
+
+All the above applies on mobile, just more so. Real estate is scarce, but never
+sacrifice usability for space savings. Affordances must be VISIBLE: no cursor
+means no hover-to-discover. Touch targets must be big enough (44px minimum).
+Flat design can strip away useful visual information that signals interactivity.
+Prioritize ruthlessly: things needed in a hurry go close at hand, everything
+else a few taps away with an obvious path to get there.
 
 ## Step 0: Session Detection
 
@@ -642,7 +746,7 @@ ls src/ app/ pages/ components/ 2>/dev/null | head -30
 
 ```bash
 setopt +o nomatch 2>/dev/null || true
-ls ~/.jstack/projects/$SLUG/*brainstorm* 2>/dev/null | head -5
+ls ~/.jstack/projects/$SLUG/*office-hours* 2>/dev/null | head -5
 ```
 
 If DESIGN.md exists, tell the user: "I'll follow your design system in DESIGN.md by
@@ -660,7 +764,7 @@ like how this looks," screenshot the current page and use `$D evolve` instead of
 `$D variants` to generate improvement variants from the existing design.
 
 **AskUserQuestion with pre-filled context:** Pre-fill what you inferred from the codebase,
-DESIGN.md, and brainstorm output. Then ask for what's missing. Frame as ONE question
+DESIGN.md, and office-hours output. Then ask for what's missing. Frame as ONE question
 covering all gaps:
 
 > "Here's what I know: [pre-filled context]. I'm missing [gaps].
@@ -693,7 +797,7 @@ Set up the output directory:
 
 ```bash
 eval "$(~/.claude/skills/jstack/bin/jstack-slug 2>/dev/null)"
-_DESIGN_DIR=~/.jstack/projects/$SLUG/designs/<screen-name>-$(date +%Y%m%d)
+_DESIGN_DIR="$HOME/.jstack/projects/$SLUG/designs/<screen-name>-$(date +%Y%m%d)"
 mkdir -p "$_DESIGN_DIR"
 echo "DESIGN_DIR: $_DESIGN_DIR"
 ```

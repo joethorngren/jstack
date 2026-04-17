@@ -42,7 +42,7 @@ describe('jstack-settings-hook', () => {
 
   test('add creates settings.json if missing', () => {
     const result = run(`${SETTINGS_HOOK} add /path/to/jstack-session-update`, {
-      env: { GSTACK_SETTINGS_FILE: settingsFile },
+      env: { JSTACK_SETTINGS_FILE: settingsFile },
     });
     expect(result.exitCode).toBe(0);
     const settings = JSON.parse(fs.readFileSync(settingsFile, 'utf-8'));
@@ -53,7 +53,7 @@ describe('jstack-settings-hook', () => {
   test('add preserves existing settings', () => {
     fs.writeFileSync(settingsFile, JSON.stringify({ effortLevel: 'high', permissions: { defaultMode: 'auto' } }, null, 2));
     const result = run(`${SETTINGS_HOOK} add /path/to/jstack-session-update`, {
-      env: { GSTACK_SETTINGS_FILE: settingsFile },
+      env: { JSTACK_SETTINGS_FILE: settingsFile },
     });
     expect(result.exitCode).toBe(0);
     const settings = JSON.parse(fs.readFileSync(settingsFile, 'utf-8'));
@@ -64,10 +64,10 @@ describe('jstack-settings-hook', () => {
 
   test('add deduplicates (running twice does not double-add)', () => {
     run(`${SETTINGS_HOOK} add /path/to/jstack-session-update`, {
-      env: { GSTACK_SETTINGS_FILE: settingsFile },
+      env: { JSTACK_SETTINGS_FILE: settingsFile },
     });
     run(`${SETTINGS_HOOK} add /path/to/jstack-session-update`, {
-      env: { GSTACK_SETTINGS_FILE: settingsFile },
+      env: { JSTACK_SETTINGS_FILE: settingsFile },
     });
     const settings = JSON.parse(fs.readFileSync(settingsFile, 'utf-8'));
     expect(settings.hooks.SessionStart).toHaveLength(1);
@@ -75,21 +75,21 @@ describe('jstack-settings-hook', () => {
 
   test('remove removes the hook', () => {
     run(`${SETTINGS_HOOK} add /path/to/jstack-session-update`, {
-      env: { GSTACK_SETTINGS_FILE: settingsFile },
+      env: { JSTACK_SETTINGS_FILE: settingsFile },
     });
     const result = run(`${SETTINGS_HOOK} remove /path/to/jstack-session-update`, {
-      env: { GSTACK_SETTINGS_FILE: settingsFile },
+      env: { JSTACK_SETTINGS_FILE: settingsFile },
     });
     expect(result.exitCode).toBe(0);
     const settings = JSON.parse(fs.readFileSync(settingsFile, 'utf-8'));
     expect(settings.hooks).toBeUndefined();
   });
 
-  test('remove is safe when settings.json does not exist', () => {
+  test('remove exits 1 when settings.json does not exist', () => {
     const result = run(`${SETTINGS_HOOK} remove /path/to/jstack-session-update`, {
-      env: { GSTACK_SETTINGS_FILE: settingsFile },
+      env: { JSTACK_SETTINGS_FILE: settingsFile },
     });
-    expect(result.exitCode).toBe(0);
+    expect(result.exitCode).toBe(1);
   });
 
   test('remove preserves other hooks', () => {
@@ -102,7 +102,7 @@ describe('jstack-settings-hook', () => {
       },
     }, null, 2));
     run(`${SETTINGS_HOOK} remove /path/to/jstack-session-update`, {
-      env: { GSTACK_SETTINGS_FILE: settingsFile },
+      env: { JSTACK_SETTINGS_FILE: settingsFile },
     });
     const settings = JSON.parse(fs.readFileSync(settingsFile, 'utf-8'));
     expect(settings.hooks.SessionStart).toHaveLength(1);
@@ -111,7 +111,7 @@ describe('jstack-settings-hook', () => {
 
   test('atomic write (no partial file on success)', () => {
     run(`${SETTINGS_HOOK} add /path/to/jstack-session-update`, {
-      env: { GSTACK_SETTINGS_FILE: settingsFile },
+      env: { JSTACK_SETTINGS_FILE: settingsFile },
     });
     // .tmp file should not exist after successful write
     expect(fs.existsSync(settingsFile + '.tmp')).toBe(false);
@@ -226,7 +226,7 @@ describe('jstack-team-init', () => {
     expect(result.exitCode).toBe(0);
     const claude = fs.readFileSync(path.join(tmpDir, 'CLAUDE.md'), 'utf-8');
     expect(claude).toContain('## jstack (REQUIRED');
-    expect(claude).toContain('GSTACK_MISSING');
+    expect(claude).toContain('JSTACK_MISSING');
   });
 
   test('required: creates enforcement hook', () => {

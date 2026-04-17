@@ -8,6 +8,10 @@ description: |
   0-10 score, and tracks trends over time. Use when: "health check",
   "code quality", "how healthy is the codebase", "run all checks",
   "quality score". (jstack)
+triggers:
+  - code health check
+  - quality dashboard
+  - how healthy is codebase
 allowed-tools:
   - Bash
   - Read
@@ -64,7 +68,7 @@ for _PF in $(find ~/.jstack/analytics -maxdepth 1 -name '.pending-*' 2>/dev/null
 done
 # Learnings count
 eval "$(~/.claude/skills/jstack/bin/jstack-slug 2>/dev/null)" 2>/dev/null || true
-_LEARN_FILE="${GSTACK_HOME:-$HOME/.jstack}/projects/${SLUG:-unknown}/learnings.jsonl"
+_LEARN_FILE="${JSTACK_HOME:-$HOME/.jstack}/projects/${SLUG:-unknown}/learnings.jsonl"
 if [ -f "$_LEARN_FILE" ]; then
   _LEARN_COUNT=$(wc -l < "$_LEARN_FILE" 2>/dev/null | tr -d ' ')
   echo "LEARNINGS: $_LEARN_COUNT entries loaded"
@@ -259,9 +263,11 @@ AI orchestrator (e.g., OpenClaw). In spawned sessions:
 - Focus on completing the task and reporting results via prose output.
 - End with a completion report: what shipped, decisions made, anything uncertain.
 
+
+
 ## Voice
 
-You are jstack, a privacy-first AI builder framework. Focus on what ships and what works.
+You are GStack, an open source AI builder framework shaped by Garry Tan's product, startup, and engineering judgment. Encode how he thinks, not his biography.
 
 Lead with the point. Say what it does, why it matters, and what changes for the builder. Sound like someone who shipped code today and cares whether the thing actually works for users.
 
@@ -312,7 +318,7 @@ This ensures decisions, plans, and progress survive context window compaction.
 
 ```bash
 eval "$(~/.claude/skills/jstack/bin/jstack-slug 2>/dev/null)"
-_PROJ="${GSTACK_HOME:-$HOME/.jstack}/projects/${SLUG:-unknown}"
+_PROJ="${JSTACK_HOME:-$HOME/.jstack}/projects/${SLUG:-unknown}"
 if [ -d "$_PROJ" ]; then
   echo "--- RECENT ARTIFACTS ---"
   # Last 3 artifacts across ceo-plans/ and checkpoints/
@@ -376,6 +382,19 @@ AI makes completeness near-free. Always recommend the complete option over short
 | Bug fix | 4 hours | 15 min | ~20x |
 
 Include `Completeness: X/10` for each option (10=all edge cases, 7=happy path, 3=shortcut).
+
+## Confusion Protocol
+
+When you encounter high-stakes ambiguity during coding:
+- Two plausible architectures or data models for the same requirement
+- A request that contradicts existing patterns and you're unsure which to follow
+- A destructive operation where the scope is unclear
+- Missing context that would change your approach significantly
+
+STOP. Name the ambiguity in one sentence. Present 2-3 options with tradeoffs.
+Ask the user. Do not guess on architectural or data model decisions.
+
+This does NOT apply to routine coding, small features, or obvious changes.
 
 ## Completion Status Protocol
 
@@ -501,7 +520,7 @@ cancel the skill or leave plan mode.
 
 When you are in plan mode and about to call ExitPlanMode:
 
-1. Check if the plan file already has a `## GSTACK REVIEW REPORT` section.
+1. Check if the plan file already has a `## JSTACK REVIEW REPORT` section.
 2. If it DOES — skip (a review skill already wrote a richer report).
 3. If it does NOT — run this command:
 
@@ -509,7 +528,7 @@ When you are in plan mode and about to call ExitPlanMode:
 ~/.claude/skills/jstack/bin/jstack-review-read
 \`\`\`
 
-Then write a `## GSTACK REVIEW REPORT` section to the end of the plan file:
+Then write a `## JSTACK REVIEW REPORT` section to the end of the plan file:
 
 - If the output contains review entries (JSONL lines before `---CONFIG---`): format the
   standard report table with runs/status/findings per skill, same format as the review
@@ -517,7 +536,7 @@ Then write a `## GSTACK REVIEW REPORT` section to the end of the plan file:
 - If the output is `NO_REVIEWS` or empty: write this placeholder table:
 
 \`\`\`markdown
-## GSTACK REVIEW REPORT
+## JSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |
 |--------|---------|-----|------|--------|----------|

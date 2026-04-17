@@ -9,6 +9,10 @@ description: |
   Use when: "performance", "benchmark", "page speed", "lighthouse", "web vitals",
   "bundle size", "load time". (jstack)
   Voice triggers (speech-to-text aliases): "speed test", "check performance".
+triggers:
+  - performance benchmark
+  - check page speed
+  - detect performance regression
 allowed-tools:
   - Bash
   - Read
@@ -63,7 +67,7 @@ for _PF in $(find ~/.jstack/analytics -maxdepth 1 -name '.pending-*' 2>/dev/null
 done
 # Learnings count
 eval "$(~/.claude/skills/jstack/bin/jstack-slug 2>/dev/null)" 2>/dev/null || true
-_LEARN_FILE="${GSTACK_HOME:-$HOME/.jstack}/projects/${SLUG:-unknown}/learnings.jsonl"
+_LEARN_FILE="${JSTACK_HOME:-$HOME/.jstack}/projects/${SLUG:-unknown}/learnings.jsonl"
 if [ -f "$_LEARN_FILE" ]; then
   _LEARN_COUNT=$(wc -l < "$_LEARN_FILE" 2>/dev/null | tr -d ' ')
   echo "LEARNINGS: $_LEARN_COUNT entries loaded"
@@ -258,6 +262,8 @@ AI orchestrator (e.g., OpenClaw). In spawned sessions:
 - Focus on completing the task and reporting results via prose output.
 - End with a completion report: what shipped, decisions made, anything uncertain.
 
+
+
 ## Voice
 
 **Tone:** direct, concrete, sharp, never corporate, never academic. Sound like a builder, not a consultant. Name the file, the function, the command. No filler, no throat-clearing.
@@ -390,7 +396,7 @@ cancel the skill or leave plan mode.
 
 When you are in plan mode and about to call ExitPlanMode:
 
-1. Check if the plan file already has a `## GSTACK REVIEW REPORT` section.
+1. Check if the plan file already has a `## JSTACK REVIEW REPORT` section.
 2. If it DOES — skip (a review skill already wrote a richer report).
 3. If it does NOT — run this command:
 
@@ -398,7 +404,7 @@ When you are in plan mode and about to call ExitPlanMode:
 ~/.claude/skills/jstack/bin/jstack-review-read
 \`\`\`
 
-Then write a `## GSTACK REVIEW REPORT` section to the end of the plan file:
+Then write a `## JSTACK REVIEW REPORT` section to the end of the plan file:
 
 - If the output contains review entries (JSONL lines before `---CONFIG---`): format the
   standard report table with runs/status/findings per skill, same format as the review
@@ -406,7 +412,7 @@ Then write a `## GSTACK REVIEW REPORT` section to the end of the plan file:
 - If the output is `NO_REVIEWS` or empty: write this placeholder table:
 
 \`\`\`markdown
-## GSTACK REVIEW REPORT
+## JSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |
 |--------|---------|-----|------|--------|----------|
@@ -429,7 +435,7 @@ plan's living status.
 _ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
 B=""
 [ -n "$_ROOT" ] && [ -x "$_ROOT/.claude/skills/jstack/browse/dist/browse" ] && B="$_ROOT/.claude/skills/jstack/browse/dist/browse"
-[ -z "$B" ] && B=~/.claude/skills/jstack/browse/dist/browse
+[ -z "$B" ] && B="$HOME/.claude/skills/jstack/browse/dist/browse"
 if [ -x "$B" ]; then
   echo "READY: $B"
 else

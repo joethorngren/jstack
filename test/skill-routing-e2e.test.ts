@@ -60,37 +60,28 @@ if (evalsEnabled && process.env.EVALS_TIER) {
 // --- Helper functions ---
 
 /** Copy all SKILL.md files for auto-discovery.
- *  Install to BOTH project-level (.claude/skills/) AND user-level (~/.claude/skills/)
- *  because Claude Code discovers skills from both locations. In CI containers,
- *  $HOME may differ from the working directory, so we need both paths to ensure
- *  the Skill tool appears in Claude's available tools list. */
+ *  Installs to project-level (.claude/skills/) only. Writing to the user's
+ *  ~/.claude/skills/ is unsafe: it may contain symlinks from the real jstack
+ *  install that point to different worktrees or dangling targets. */
 function installSkills(tmpDir: string) {
   const skillDirs = [
     '', // root jstack SKILL.md
     'qa', 'qa-only', 'ship', 'review', 'plan-ceo-review', 'plan-eng-review',
     'plan-design-review', 'design-review', 'design-consultation', 'retro',
-    'document-release', 'investigate', 'brainstorm', 'browse', 'setup-browser-cookies',
+    'document-release', 'investigate', 'office-hours', 'browse', 'setup-browser-cookies',
     'jstack-upgrade', 'humanizer',
   ];
 
-  // Install to both project-level and user-level skill directories
-  const homeDir = process.env.HOME || os.homedir();
-  const installTargets = [
-    path.join(tmpDir, '.claude', 'skills'),        // project-level
-    path.join(homeDir, '.claude', 'skills'),        // user-level (~/.claude/skills/)
-  ];
+  const targetBase = path.join(tmpDir, '.claude', 'skills');
 
   for (const skill of skillDirs) {
     const srcPath = path.join(ROOT, skill, 'SKILL.md');
     if (!fs.existsSync(srcPath)) continue;
 
     const skillName = skill || 'jstack';
-
-    for (const targetBase of installTargets) {
-      const destDir = path.join(targetBase, skillName);
-      fs.mkdirSync(destDir, { recursive: true });
-      fs.copyFileSync(srcPath, path.join(destDir, 'SKILL.md'));
-    }
+    const destDir = path.join(targetBase, skillName);
+    fs.mkdirSync(destDir, { recursive: true });
+    fs.copyFileSync(srcPath, path.join(destDir, 'SKILL.md'));
   }
 
   // Write a CLAUDE.md with explicit routing instructions.
@@ -106,7 +97,7 @@ tool as your FIRST action. Do NOT answer directly, do NOT use other tools first.
 The skill has specialized workflows that produce better results than ad-hoc answers.
 
 Key routing rules:
-- Product ideas, "is this worth building", brainstorming → invoke brainstorm
+- Product ideas, "is this worth building", brainstorming → invoke office-hours
 - Bugs, errors, "why is this broken", 500 errors → invoke investigate
 - Ship, deploy, push, create PR → invoke ship
 - QA, test the site, find bugs → invoke qa
@@ -195,7 +186,7 @@ describeE2E('Skill Routing E2E — Developer Journey', () => {
     try {
 
       const testName = 'journey-ideation';
-      const expectedSkill = 'brainstorm';
+      const expectedSkill = 'office-hours';
       const result = await runSkillTest({
         prompt: "I've been thinking about building a waitlist management tool for restaurants. The existing solutions are expensive and overcomplicated. I want something simple — a tablet app where hosts can add parties, see wait times, and text customers when their table is ready. Help me think through whether this is worth building and what the key design decisions are.",
         workingDirectory: tmpDir,

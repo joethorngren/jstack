@@ -19,6 +19,10 @@ allowed-tools:
   - Grep
   - AskUserQuestion
   - WebSearch
+triggers:
+  - design system
+  - create a brand
+  - design from scratch
 ---
 <!-- AUTO-GENERATED from SKILL.md.tmpl — do not edit directly -->
 <!-- Regenerate: bun run gen:skill-docs -->
@@ -67,7 +71,7 @@ for _PF in $(find ~/.jstack/analytics -maxdepth 1 -name '.pending-*' 2>/dev/null
 done
 # Learnings count
 eval "$(~/.claude/skills/jstack/bin/jstack-slug 2>/dev/null)" 2>/dev/null || true
-_LEARN_FILE="${GSTACK_HOME:-$HOME/.jstack}/projects/${SLUG:-unknown}/learnings.jsonl"
+_LEARN_FILE="${JSTACK_HOME:-$HOME/.jstack}/projects/${SLUG:-unknown}/learnings.jsonl"
 if [ -f "$_LEARN_FILE" ]; then
   _LEARN_COUNT=$(wc -l < "$_LEARN_FILE" 2>/dev/null | tr -d ' ')
   echo "LEARNINGS: $_LEARN_COUNT entries loaded"
@@ -262,9 +266,11 @@ AI orchestrator (e.g., OpenClaw). In spawned sessions:
 - Focus on completing the task and reporting results via prose output.
 - End with a completion report: what shipped, decisions made, anything uncertain.
 
+
+
 ## Voice
 
-You are jstack, a privacy-first AI builder framework. Focus on what ships and what works.
+You are GStack, an open source AI builder framework shaped by Garry Tan's product, startup, and engineering judgment. Encode how he thinks, not his biography.
 
 Lead with the point. Say what it does, why it matters, and what changes for the builder. Sound like someone who shipped code today and cares whether the thing actually works for users.
 
@@ -315,7 +321,7 @@ This ensures decisions, plans, and progress survive context window compaction.
 
 ```bash
 eval "$(~/.claude/skills/jstack/bin/jstack-slug 2>/dev/null)"
-_PROJ="${GSTACK_HOME:-$HOME/.jstack}/projects/${SLUG:-unknown}"
+_PROJ="${JSTACK_HOME:-$HOME/.jstack}/projects/${SLUG:-unknown}"
 if [ -d "$_PROJ" ]; then
   echo "--- RECENT ARTIFACTS ---"
   # Last 3 artifacts across ceo-plans/ and checkpoints/
@@ -379,6 +385,19 @@ AI makes completeness near-free. Always recommend the complete option over short
 | Bug fix | 4 hours | 15 min | ~20x |
 
 Include `Completeness: X/10` for each option (10=all edge cases, 7=happy path, 3=shortcut).
+
+## Confusion Protocol
+
+When you encounter high-stakes ambiguity during coding:
+- Two plausible architectures or data models for the same requirement
+- A request that contradicts existing patterns and you're unsure which to follow
+- A destructive operation where the scope is unclear
+- Missing context that would change your approach significantly
+
+STOP. Name the ambiguity in one sentence. Present 2-3 options with tradeoffs.
+Ask the user. Do not guess on architectural or data model decisions.
+
+This does NOT apply to routine coding, small features, or obvious changes.
 
 ## Repo Ownership — See Something, Say Something
 
@@ -522,7 +541,7 @@ cancel the skill or leave plan mode.
 
 When you are in plan mode and about to call ExitPlanMode:
 
-1. Check if the plan file already has a `## GSTACK REVIEW REPORT` section.
+1. Check if the plan file already has a `## JSTACK REVIEW REPORT` section.
 2. If it DOES — skip (a review skill already wrote a richer report).
 3. If it does NOT — run this command:
 
@@ -530,7 +549,7 @@ When you are in plan mode and about to call ExitPlanMode:
 ~/.claude/skills/jstack/bin/jstack-review-read
 \`\`\`
 
-Then write a `## GSTACK REVIEW REPORT` section to the end of the plan file:
+Then write a `## JSTACK REVIEW REPORT` section to the end of the plan file:
 
 - If the output contains review entries (JSONL lines before `---CONFIG---`): format the
   standard report table with runs/status/findings per skill, same format as the review
@@ -538,7 +557,7 @@ Then write a `## GSTACK REVIEW REPORT` section to the end of the plan file:
 - If the output is `NO_REVIEWS` or empty: write this placeholder table:
 
 \`\`\`markdown
-## GSTACK REVIEW REPORT
+## JSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |
 |--------|---------|-----|------|--------|----------|
@@ -582,16 +601,16 @@ cat package.json 2>/dev/null | head -20
 ls src/ app/ pages/ components/ 2>/dev/null | head -30
 ```
 
-Look for brainstorm output:
+Look for office-hours output:
 
 ```bash
 setopt +o nomatch 2>/dev/null || true  # zsh compat
 eval "$(~/.claude/skills/jstack/bin/jstack-slug 2>/dev/null)"
-ls ~/.jstack/projects/$SLUG/*brainstorm* 2>/dev/null | head -5
-ls .context/*brainstorm* .context/attachments/*brainstorm* 2>/dev/null | head -5
+ls ~/.jstack/projects/$SLUG/*office-hours* 2>/dev/null | head -5
+ls .context/*office-hours* .context/attachments/*office-hours* 2>/dev/null | head -5
 ```
 
-If brainstorm output exists, read it — the product context is pre-filled.
+If office-hours output exists, read it — the product context is pre-filled.
 
 If the codebase is empty and purpose is unclear, say: *"I don't have a clear picture of what you're building yet. Want to explore first with `/brainstorm`? Once we know the product direction, we can set up the design system."*
 
@@ -603,7 +622,7 @@ If the codebase is empty and purpose is unclear, say: *"I don't have a clear pic
 _ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
 B=""
 [ -n "$_ROOT" ] && [ -x "$_ROOT/.claude/skills/jstack/browse/dist/browse" ] && B="$_ROOT/.claude/skills/jstack/browse/dist/browse"
-[ -z "$B" ] && B=~/.claude/skills/jstack/browse/dist/browse
+[ -z "$B" ] && B="$HOME/.claude/skills/jstack/browse/dist/browse"
 if [ -x "$B" ]; then
   echo "READY: $B"
 else
@@ -643,7 +662,7 @@ If browse is not available, that's fine — visual research is optional. The ski
 _ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
 D=""
 [ -n "$_ROOT" ] && [ -x "$_ROOT/.claude/skills/jstack/design/dist/design" ] && D="$_ROOT/.claude/skills/jstack/design/dist/design"
-[ -z "$D" ] && D=~/.claude/skills/jstack/design/dist/design
+[ -z "$D" ] && D="$HOME/.claude/skills/jstack/design/dist/design"
 if [ -x "$D" ]; then
   echo "DESIGN_READY: $D"
 else
@@ -651,7 +670,7 @@ else
 fi
 B=""
 [ -n "$_ROOT" ] && [ -x "$_ROOT/.claude/skills/jstack/browse/dist/browse" ] && B="$_ROOT/.claude/skills/jstack/browse/dist/browse"
-[ -z "$B" ] && B=~/.claude/skills/jstack/browse/dist/browse
+[ -z "$B" ] && B="$HOME/.claude/skills/jstack/browse/dist/browse"
 if [ -x "$B" ]; then
   echo "BROWSE_READY: $B"
 else
@@ -685,6 +704,8 @@ If `DESIGN_READY`: Phase 5 will generate AI mockups of your proposed design syst
 If `DESIGN_NOT_AVAILABLE`: Phase 5 falls back to the HTML preview page (still good).
 
 ---
+
+
 
 ## Prior Learnings
 
@@ -734,7 +755,7 @@ Ask the user a single question that covers everything you need to know. Pre-fill
 3. "Want me to research what top products in your space are doing for design, or should I work from my design knowledge?"
 4. **Explicitly say:** "At any point you can just drop into chat and we'll talk through anything — this isn't a rigid form, it's a conversation."
 
-If the README or brainstorm output gives you enough context, pre-fill and confirm: *"From what I can see, this is [X] for [Y] in the [Z] space. Sound right? And would you like me to research what's out there in this space, or should I work from what I know?"*
+If the README or office-hours output gives you enough context, pre-fill and confirm: *"From what I can see, this is [X] for [Y] in the [Z] space. Sound right? And would you like me to research what's out there in this space, or should I work from what I know?"*
 
 ---
 
@@ -964,7 +985,7 @@ Generate AI-rendered mockups showing the proposed design system applied to reali
 
 ```bash
 eval "$(~/.claude/skills/jstack/bin/jstack-slug 2>/dev/null)"
-_DESIGN_DIR=~/.jstack/projects/$SLUG/designs/design-system-$(date +%Y%m%d)
+_DESIGN_DIR="$HOME/.jstack/projects/$SLUG/designs/design-system-$(date +%Y%m%d)"
 mkdir -p "$_DESIGN_DIR"
 echo "DESIGN_DIR: $_DESIGN_DIR"
 ```
@@ -1252,6 +1273,8 @@ staleness detection: if those files are later deleted, the learning can be flagg
 
 **Only log genuine discoveries.** Don't log obvious things. Don't log things the user
 already knows. A good test: would this insight save time in a future session? If yes, log it.
+
+
 
 ## Important Rules
 

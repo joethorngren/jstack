@@ -68,8 +68,8 @@ export const E2E_TOUCHFILES: Record<string, string[]> = {
   'review-army-red-team':         ['review/**', 'scripts/resolvers/review-army.ts'],
   'review-army-consensus':        ['review/**', 'scripts/resolvers/review-army.ts'],
 
-  // Brainstorm
-  'brainstorm-spec-review':  ['brainstorm/**', 'scripts/gen-skill-docs.ts'],
+  // Office Hours
+  'office-hours-spec-review':  ['brainstorm/**', 'scripts/gen-skill-docs.ts'],
 
   // Plan reviews
   'plan-ceo-review':           ['plan-ceo-review/**'],
@@ -80,7 +80,7 @@ export const E2E_TOUCHFILES: Record<string, string[]> = {
   'plan-review-report':        ['plan-eng-review/**', 'scripts/gen-skill-docs.ts'],
 
   // Codex offering verification
-  'codex-offered-brainstorm':  ['brainstorm/**', 'scripts/gen-skill-docs.ts'],
+  'codex-offered-office-hours':  ['brainstorm/**', 'scripts/gen-skill-docs.ts'],
   'codex-offered-ceo-review':    ['plan-ceo-review/**', 'scripts/gen-skill-docs.ts'],
   'codex-offered-design-review': ['plan-design-review/**', 'scripts/gen-skill-docs.ts'],
   'codex-offered-eng-review':    ['plan-eng-review/**', 'scripts/gen-skill-docs.ts'],
@@ -122,9 +122,8 @@ export const E2E_TOUCHFILES: Record<string, string[]> = {
   'codex-discover-skill':  ['codex/**', '.agents/skills/**', 'test/helpers/codex-session-runner.ts', 'lib/worktree.ts'],
   'codex-review-findings': ['review/**', '.agents/skills/jstack-review/**', 'codex/**', 'test/helpers/codex-session-runner.ts', 'lib/worktree.ts'],
 
-  // Gemini E2E (tests skills via Gemini CLI + worktree)
-  'gemini-discover-skill':  ['.agents/skills/**', 'test/helpers/gemini-session-runner.ts', 'lib/worktree.ts'],
-  'gemini-review-findings': ['review/**', '.agents/skills/jstack-review/**', 'test/helpers/gemini-session-runner.ts', 'lib/worktree.ts'],
+  // Gemini E2E — smoke test only (Gemini gets lost in worktrees on complex tasks)
+  'gemini-smoke':  ['.agents/skills/**', 'test/helpers/gemini-session-runner.ts', 'lib/worktree.ts'],
 
 
   // Coverage audit (shared fixture) + triage + gates
@@ -228,8 +227,8 @@ export const E2E_TIERS: Record<string, 'gate' | 'periodic'> = {
   'review-army-red-team': 'periodic',       // Multi-agent coordination
   'review-army-consensus': 'periodic',      // Multi-specialist agreement
 
-  // Brainstorm
-  'brainstorm-spec-review': 'gate',
+  // Office Hours
+  'office-hours-spec-review': 'gate',
 
   // Plan reviews — gate for cheap functional, periodic for Opus quality
   'plan-ceo-review': 'periodic',
@@ -241,7 +240,7 @@ export const E2E_TIERS: Record<string, 'gate' | 'periodic'> = {
   'plan-review-report': 'gate',
 
   // Codex offering verification
-  'codex-offered-brainstorm': 'gate',
+  'codex-offered-office-hours': 'gate',
   'codex-offered-ceo-review': 'gate',
   'codex-offered-design-review': 'gate',
   'codex-offered-eng-review': 'gate',
@@ -284,8 +283,7 @@ export const E2E_TIERS: Record<string, 'gate' | 'periodic'> = {
   // Multi-AI — periodic (require external CLIs)
   'codex-discover-skill': 'periodic',
   'codex-review-findings': 'periodic',
-  'gemini-discover-skill': 'periodic',
-  'gemini-review-findings': 'periodic',
+  'gemini-smoke': 'periodic',
 
   // Design — gate for cheap functional, periodic for Opus/quality
   'design-consultation-core': 'periodic',
@@ -359,7 +357,7 @@ export const LLM_JUDGE_TOUCHFILES: Record<string, string[]> = {
   'design-review/SKILL.md fix loop':      ['design-review/SKILL.md', 'design-review/SKILL.md.tmpl'],
   'design-consultation/SKILL.md research': ['design-consultation/SKILL.md', 'design-consultation/SKILL.md.tmpl'],
 
-  // Brainstorm
+  // Office Hours
   'brainstorm/SKILL.md spec review':    ['brainstorm/SKILL.md', 'brainstorm/SKILL.md.tmpl', 'scripts/gen-skill-docs.ts'],
   'brainstorm/SKILL.md design sketch':  ['brainstorm/SKILL.md', 'brainstorm/SKILL.md.tmpl', 'scripts/gen-skill-docs.ts'],
 

@@ -9,6 +9,10 @@ description: |
   "visual brainstorm", or "I don't like how this looks".
   Proactively suggest when the user describes a UI feature but hasn't seen
   what it could look like. (jstack)
+triggers:
+  - explore design variants
+  - show me design options
+  - visual design brainstorm
 allowed-tools:
   - Bash
   - Read
@@ -27,6 +31,8 @@ side-by-side in the user's browser, and iterate until they approve a direction. 
 visual brainstorming, not a review process.
 
 {{DESIGN_SETUP}}
+
+{{UX_PRINCIPLES}}
 
 ## Step 0: Session Detection
 
@@ -87,7 +93,7 @@ ls src/ app/ pages/ components/ 2>/dev/null | head -30
 
 ```bash
 setopt +o nomatch 2>/dev/null || true
-ls ~/.jstack/projects/$SLUG/*brainstorm* 2>/dev/null | head -5
+ls ~/.jstack/projects/$SLUG/*office-hours* 2>/dev/null | head -5
 ```
 
 If DESIGN.md exists, tell the user: "I'll follow your design system in DESIGN.md by
@@ -105,7 +111,7 @@ like how this looks," screenshot the current page and use `$D evolve` instead of
 `$D variants` to generate improvement variants from the existing design.
 
 **AskUserQuestion with pre-filled context:** Pre-fill what you inferred from the codebase,
-DESIGN.md, and brainstorm output. Then ask for what's missing. Frame as ONE question
+DESIGN.md, and office-hours output. Then ask for what's missing. Frame as ONE question
 covering all gaps:
 
 > "Here's what I know: [pre-filled context]. I'm missing [gaps].
@@ -138,7 +144,7 @@ Set up the output directory:
 
 ```bash
 eval "$(~/.claude/skills/jstack/bin/jstack-slug 2>/dev/null)"
-_DESIGN_DIR=~/.jstack/projects/$SLUG/designs/<screen-name>-$(date +%Y%m%d)
+_DESIGN_DIR="$HOME/.jstack/projects/$SLUG/designs/<screen-name>-$(date +%Y%m%d)"
 mkdir -p "$_DESIGN_DIR"
 echo "DESIGN_DIR: $_DESIGN_DIR"
 ```
