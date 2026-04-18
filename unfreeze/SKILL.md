@@ -6,6 +6,10 @@ description: |
   again. Use when you want to widen edit scope without ending the session.
   Use when asked to "unfreeze", "unlock edits", "remove freeze", or
   "allow all edits". (jstack)
+triggers:
+  - unfreeze edits
+  - unlock all directories
+  - remove edit restrictions
 allowed-tools:
   - Bash
   - Read

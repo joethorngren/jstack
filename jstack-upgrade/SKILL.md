@@ -6,6 +6,10 @@ description: |
   runs the upgrade, and shows what's new. Use when asked to "upgrade jstack",
   "update jstack", or "get latest version".
   Voice triggers (speech-to-text aliases): "upgrade the tools", "update the tools", "gee stack upgrade", "g stack upgrade".
+triggers:
+  - upgrade jstack
+  - update jstack version
+  - get latest jstack
 allowed-tools:
   - Bash
   - Read
@@ -49,7 +53,7 @@ Tell user: "Auto-upgrade enabled. Future updates will install automatically." Th
 
 **If "Not now":** Write snooze state with escalating backoff (first snooze = 24h, second = 48h, third+ = 1 week), then continue with the current skill. Do not mention the upgrade again.
 ```bash
-_SNOOZE_FILE=~/.jstack/update-snoozed
+_SNOOZE_FILE="$HOME/.jstack/update-snoozed"
 _REMOTE_VER="{new}"
 _CUR_LEVEL=0
 if [ -f "$_SNOOZE_FILE" ]; then
@@ -130,7 +134,7 @@ If `$STASH_OUTPUT` contains "Saved working directory", warn the user: "Note: loc
 ```bash
 PARENT=$(dirname "$INSTALL_DIR")
 TMP_DIR=$(mktemp -d)
-git clone --depth 1 https://github.com/joethorngren/jstack.git "$TMP_DIR/jstack"
+git clone --depth 1 https://github.com/garrytan/jstack.git "$TMP_DIR/jstack"
 mv "$INSTALL_DIR" "$INSTALL_DIR.bak"
 mv "$TMP_DIR/jstack" "$INSTALL_DIR"
 cd "$INSTALL_DIR" && ./setup

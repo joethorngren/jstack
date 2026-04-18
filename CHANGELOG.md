@@ -1,34 +1,255 @@
 # Changelog
 
-jstack is a fork of [gstack](https://github.com/garrytan/gstack).
+## [1.0.0.0] - 2026-04-18
 
-## [0.2.0] — 2026-04-06
+### Added
+- **v1 prompts = simpler.** Every skill's output (tier 2 and up) explains technical terms on first use with a one-sentence gloss, frames questions in outcome terms ("what breaks for your users if..." instead of "is this endpoint idempotent?"), and keeps sentences short and direct. Good writing for everyone — not just non-technical folks. Engineers benefit too.
+- **Terse opt-out for power users.** `jstack-config set explain_level terse` switches every skill back to the older, tighter prose style — no glosses, no outcome-framing layer. Binary switch, sticks across all skills.
+- **Curated jargon list.** A repo-owned list of ~50 technical terms (idempotent, race condition, N+1, backpressure, and friends) at `scripts/jargon-list.json`. These are the terms jstack glosses. Terms not on the list are assumed plain-English enough. Add terms via PR.
+- **Real LOC receipts in the README.** Replaced the "600,000+ lines of production code" hero framing with a computed 2013-vs-2026 pro-rata multiple on logical code change, with honest caveats about public-vs-private repos. The script that computes it is at `scripts/garry-output-comparison.ts` and uses [scc](https://github.com/boyter/scc). Raw LOC is still in `/retro` output for context, just no longer the headline.
+- **Smarter `/retro` metrics.** `/retro` now leads with features shipped, commits, and PRs merged — logical SLOC added comes next, and raw LOC is demoted to context-only. Because ten lines of a good fix is not less shipping than ten thousand lines of scaffold.
+- **Upgrade prompt on first run.** When you upgrade to this version, the first skill you run will ask once whether you want to keep the new default writing style or restore V0 prose with `jstack-config set explain_level terse`. One-time, flag-file gated, never asks again.
 
-Upstream sync: merged 26 commits from gstack v0.15.15.0. All upstream improvements
-with jstack branding preserved.
+### Changed
+- **README hero reframed.** No more "10K-20K lines per day" claim. Focuses on products shipped + features + the pro-rata multiple on logical code change, which is the honest metric now that AI writes most of the code. The point isn't who typed it, it's what shipped.
+- **Hiring callout reframed.** Replaced "ship 10K+ LOC/day" with "ship real products at AI-coding speed."
 
-### What's new
+### For contributors
+- New `scripts/resolvers/preamble.ts` Writing Style section, injected for tier ≥ 2 skills. Composes with the existing AskUserQuestion Format section (Format = how the question is structured, Style = the prose quality of the content inside). Jargon list is baked into generated SKILL.md prose at `gen-skill-docs` time — zero runtime cost, edit the JSON and regenerate.
+- New `bin/jstack-config` validation for `explain_level` values. Unknown values print a warning and default to `default`. Annotated header documents the new key.
+- New one-shot upgrade migration at `jstack-upgrade/migrations/v1.0.0.0.sh`, matching existing `v0.15.2.0.sh` / `v0.16.2.0.sh` pattern. Flag-file gated.
+- New throughput pipeline: `scripts/garry-output-comparison.ts` (scc preflight + author-scoped SLOC across 2013 + 2026), `scripts/update-readme-throughput.ts` (reads the JSON, replaces `<!-- JSTACK-THROUGHPUT-PLACEHOLDER -->` anchor), `scripts/setup-scc.sh` (OS-detecting installer invoked only when running the throughput script — scc is not a package.json dependency).
+- Two-string marker pattern in README to prevent the pipeline from destroying its own update path: `JSTACK-THROUGHPUT-PLACEHOLDER` (stable anchor) vs `JSTACK-THROUGHPUT-PENDING` (explicit missing-build marker CI rejects).
+- V0 dormancy negative tests — the 5D psychographic dimensions (scope_appetite, risk_tolerance, detail_preference, autonomy, architecture_care) and 8 archetype names (Cathedral Builder, Ship-It Pragmatist, Deep Craft, Taste Maker, Solo Operator, Consultant, Wedge Hunter, Builder-Coach) must not appear in default-mode skill output. Keeps the V0 machinery dormant until V2.
+- **Pacing improvements ship in V1.1.** The scope originally considered (review ranking, Silent Decisions block, max-3-per-phase cap, flip mechanism) was extracted to `docs/designs/PACING_UPDATES_V0.md` after three engineering-review passes revealed structural gaps that couldn't be closed with plan-text editing. V1.1 picks it up with real V1 baseline data.
+- Design doc: `docs/designs/PLAN_TUNING_V1.md`. Full review history: CEO + Codex (×2 passes, 45 findings integrated) + DX (TRIAGE) + Eng (×3 passes — last pass drove the scope reduction).
 
-- **GStack Browser.** Double-click AI browser with anti-bot stealth for QA testing and site dogfooding. Launch with `/open-jstack-browser`.
-- **DX review skills.** New `/plan-devex-review` and `/devex-review` for developer experience audits — interactive scoring with proven DX patterns.
-- **Review army improvements.** Adaptive gating + cross-review dedup eliminates redundant findings across specialist reviewers. Anti-skip rule enforces all review skills run to completion.
-- **Multi-host platform.** Declarative host configs for OpenCode, Slate, Cursor, Kiro, and OpenClaw. Add new hosts with `hosts/*.ts` — no more hardcoded paths.
-- **OpenClaw integration.** Native OpenClaw skills + ClaHub publishing support. Three CLAUDE.md tiers: lite (planning only), full (pipeline), and plan (review gauntlet).
-- **Voice triggers.** AquaVoice-friendly speech-to-text aliases on all skills — say "run QA" or "auto plan" and it works.
-- **Ship re-run.** Re-running `/ship` executes all verification checks again (tests, coverage, reviews). Only actions (VERSION bump, push, PR create) are idempotent.
-- **Team mode.** `jstack-team-init` sets up team-wide jstack with enforcement hooks, vendoring detection, and auto-upgrade on session start.
-- **Security hardening.** 14 fixes from community security audit + 8 PRs from 4 contributors. Path traversal guards, auth token validation, URL sanitization.
-- **Snapshot dropdown detection.** `snapshot -i` auto-detects dropdown/popover interactive elements.
-- **Connect Chrome.** `/connect-chrome` launches real Chrome controlled by jstack with Side Panel extension auto-loaded.
+## [0.19.0.0] - 2026-04-17
 
-### Breaking changes
+### Added
+- **`/plan-tune` skill — jstack can now learn which of its prompts you find valuable vs noisy.** If you keep answering the same AskUserQuestion the same way every time, this is the skill that teaches jstack to stop asking. Say "stop asking me about changelog polish" — jstack writes it down, respects it from that point forward, and one-way doors (destructive ops, architecture forks, security choices) still always ask regardless, because safety wins over preference. Plain English everywhere. No CLI subcommand syntax to memorize.
+- **Dual-track developer profile.** Tell jstack who you are as a builder (5 dimensions: scope appetite, risk tolerance, detail preference, autonomy, architecture care). jstack also silently tracks what your behavior suggests. `/plan-tune` shows both side by side plus the gap, so you can see when your actions don't match your self-description. v1 is observational — no skills change their behavior based on your profile yet. That comes in v2, once the profile has proven itself.
+- **Builder archetypes.** Run `/plan-tune vibe` (v2) or let the skill infer it from your dimensions. Eight named archetypes (Cathedral Builder, Ship-It Pragmatist, Deep Craft, Taste Maker, Solo Operator, Consultant, Wedge Hunter, Builder-Coach) plus a Polymath fallback when your dimensions don't fit a standard pattern. Codebase and model ship now; the user-facing commands are v2.
+- **Inline `tune:` feedback across every jstack skill.** When a skill asks you something, you can reply `tune: never-ask` or `tune: always-ask` or free-form English and jstack normalizes it into a preference. Only runs when you've opted in via `jstack-config set question_tuning true` — zero impact until then.
+- **Profile-poisoning defense.** Inline `tune:` writes only get accepted when the prefix came from your own chat message — never from tool output, file content, PR descriptions, or anywhere else a malicious repo might inject instructions. The binary enforces this with exit code 2 for rejected writes. This was an outside-voice catch from Codex review; it's baked in from day one.
+- **Typed question registry with CI enforcement.** 53 recurring AskUserQuestion categories across 15 skills are now declared in `scripts/question-registry.ts` with stable IDs, categories, door types (one-way vs two-way), and options. A CI test asserts the schema stays valid. Safety-critical questions (destructive ops, architecture forks) are classified `one-way` at the declaration site — never inferred from prose summaries.
+- **Unified developer profile.** The `/brainstorm` skill's existing builder-profile.jsonl (sessions, signals, resources, topics) is folded into a single `~/.jstack/developer-profile.json` on first use. Migration is atomic, idempotent, and archives the source file — rerun it safely. Legacy `jstack-builder-profile` is a thin shim that delegates to the new binary.
 
-- Preamble now uses `jstack-update-check` instead of local `cat VERSION`. Skills check for updates at startup.
-- Session tracking via `~/.jstack/sessions/` replaces simple session ID generation.
+### For contributors
+- New `docs/designs/PLAN_TUNING_V0.md` captures the full design journey: every decision with pros/cons, what was deferred to v2 with explicit acceptance criteria, what was rejected after Codex review (substrate-as-prompt-convention, ±0.2 clamp, preamble LANDED detection, single event-schema), and how the final shape came together. Read this before working on v2 to understand why the constraints exist.
+- Three new binaries: `bin/jstack-question-log` (validated append to question-log.jsonl), `bin/jstack-question-preference` (explicit preference store with user-origin gate), `bin/jstack-developer-profile` (supersedes jstack-builder-profile; supports --read, --migrate, --derive, --profile, --gap, --trace, --check-mismatch, --vibe).
+- Three new preamble resolvers in `scripts/resolvers/question-tuning.ts`: question preference check (before each AskUserQuestion), question log (after), inline tune feedback with user-origin gate instructions. Consolidated into one compact `generateQuestionTuning` section for tier >= 2 skills to minimize token overhead.
+- Hand-crafted psychographic signal map (`scripts/psychographic-signals.ts`) with version hash so cached profiles recompute automatically when the map changes between jstack versions. 9 signal keys covering scope-appetite, architecture-care, test-discipline, code-quality-care, detail-preference, design-care, devex-care, distribution-care, session-mode.
+- Keyword-fallback one-way-door classifier (`scripts/one-way-doors.ts`) — secondary safety layer for ad-hoc question IDs that don't appear in the registry. Primary safety is the registry declaration.
+- 118 new tests across 4 test files: `test/plan-tune.test.ts` (47 tests — schema, helpers, safety, classifier, signal map, archetypes, preamble injection, end-to-end pipeline), `test/jstack-question-log.test.ts` (21 tests — valid payloads, rejected payloads, injection defense), `test/jstack-question-preference.test.ts` (31 tests — check/write/read/clear/stats + user-origin gate + schema validation), `test/jstack-developer-profile.test.ts` (25 tests — read/migrate/derive/trace/gap/vibe/check-mismatch). Gate-tier E2E test `skill-e2e-plan-tune.test.ts` registered (runs on `bun run test:evals`).
+- Scope rollback driven by outside-voice review. The initial CEO EXPANSION plan bundled psychographic auto-decide + blind-spot coach + LANDED celebration + full substrate wiring. Codex's 20-point critique caught that without a typed question registry, "substrate" was marketing; E1/E4/E6 formed a logical contradiction; profile poisoning was unaddressed; LANDED in the preamble injected side effects into every skill's hot path. Accepted the rollback: v1 ships the schema + observation layer, v2 adds behavior adaptation only after the foundation proves durable. All six expansions are tracked as P0 TODOs with explicit acceptance criteria.
 
-## [0.1.0] — 2026-04-01
+## [0.18.4.0] - 2026-04-18
 
-Initial jstack release.
+### Fixed
+- **Apple Silicon no longer dies with SIGKILL on first run.** `./setup` now ad-hoc codesigns every compiled binary after `bun run build` so M-series Macs can actually execute them. If you cloned jstack and saw `zsh: killed ./browse/dist/browse` before getting to Day 2, this is why. Thanks to @voidborne-d (#1003) for tracking down the Bun `--compile` linker signature issue and shipping a tested fix (6 tests across 4 binaries, idempotent, platform-guarded).
+- **`/codex` no longer hangs forever in Claude Code's Bash tool.** Codex CLI 0.120.0 introduced a stdin deadlock: if stdin is a non-TTY pipe (Claude Code, CI, background bash, OpenClaw), `codex exec` waits for EOF to append it as a `<stdin>` block, even when the prompt is passed as a positional argument. Symptom: "Reading additional input from stdin...", 0% CPU, no output. Every `codex exec` and `codex review` now redirects stdin from `/dev/null`. `/autoplan`, every plan-review outside voice, `/ship` adversarial, and `/review` adversarial all unblock. Thanks to @loning (#972) for the 13-minute repro and minimal fix.
+- **`/codex` and `/autoplan` fail fast when Codex auth is missing or broken.** Before this release, a logged-out Codex user would watch the skill spend minutes building an expensive prompt only to surface the auth error mid-stream. Now both skills preflight auth via a multi-signal probe (`$CODEX_API_KEY`, `$OPENAI_API_KEY`, or `${CODEX_HOME:-~/.codex}/auth.json`) and stop with a clear "run `codex login` or set `$CODEX_API_KEY`" message before any prompt construction. Bonus: if your Codex CLI is on a known-buggy version (currently 0.120.0-0.120.2), you'll get a one-line nudge to upgrade.
+- **`/codex` and `/autoplan` no longer sit at 0% CPU forever if the model API stalls.** Every `codex exec` / `codex review` now runs under a 10-minute timeout wrapper with a `gtimeout → timeout → unwrapped` fallback chain, so you get a clear "Codex stalled past 10 minutes. Common causes: model API stall, long prompt, network issue. Try re-running." message instead of an infinite wait. `./setup` auto-installs `coreutils` on macOS so `gtimeout` is available (skip with `JSTACK_SKIP_COREUTILS=1` for CI / locked machines).
+- **`/codex` Challenge mode now surfaces auth errors instead of silently dropping them.** Challenge mode was piping stderr to `/dev/null`, which masked any auth failures in the middle of a run. Now it captures stderr to a temp file and checks for `auth|login|unauthorized` patterns. If Codex errors mid-run, you see it.
+- **Plan reviews no longer quietly bias toward minimal-diff recommendations.** `/plan-ceo-review` and `/plan-eng-review` used to list "minimal diff" as an engineering preference without a counterbalancing "rewrite is fine when warranted" note. Reviewers picked up on that and rejected rewrites that should've been approved. The preference is now framed as "right-sized diff" with explicit permission to recommend a rewrite when the existing foundation is broken. Implementation alternatives in CEO review also got an equal-weight clarification: don't default to minimal viable just because it's smaller.
+
+### For contributors
+- New `bin/jstack-codex-probe` consolidates the auth probe, version check, timeout wrapper, and telemetry logger into one bash helper that `/codex` and `/autoplan` both source. When a second outside-voice backend lands (Gemini CLI), this is the file to extend.
+- New `test/codex-hardening.test.ts` ships 25 deterministic unit tests for the probe (8 auth probe combinations, 10 version regex cases including `0.120.10` false-positive guards, 4 timeout wrapper + namespace hygiene checks, 3 telemetry payload schema checks confirming no env values leak into events). Free tier, <5s runtime.
+- New `test/skill-e2e-autoplan-dual-voice.test.ts` (periodic tier) gates the `/autoplan` dual-voice path. Asserts both Claude subagent and Codex voices produce output in Phase 1, OR that `[codex-unavailable]` is logged when Codex is absent. Periodic ~= $1/run, not a gate.
+- Codex failure telemetry events (`codex_timeout`, `codex_auth_failed`, `codex_cli_missing`, `codex_version_warning`) now land in `~/.jstack/analytics/skill-usage.jsonl` behind the existing user opt-in. Reliability regressions are visible at the user-base scale.
+- Codex timeouts (`exit 124`) now auto-log operational learnings via `jstack-learnings-log`. Future `/investigate` sessions on the same skill/branch surface prior hang patterns automatically.
+
+## [0.18.3.0] - 2026-04-17
+
+### Added
+- **Windows cookie import.** `/setup-browser-cookies` now works on Windows. Point it at Chrome, Edge, Brave, or Chromium, pick a profile, and jstack will pull your real browser cookies into the headless session. Handles AES-256-GCM (Chrome 80+), DPAPI key unwrap via PowerShell, and falls back to a headless CDP session for v20 App-Bound Encryption on Chrome 127+. Windows users can now do authenticated QA testing with `/qa` and `/design-review` for the first time.
+- **One-command OpenCode install.** `./setup --host opencode` now wires up jstack skills for OpenCode the same way it does for Claude Code and Codex. No more manual workaround.
+
+### Fixed
+- **No more permission prompts on every skill invocation.** Every `/browse`, `/qa`, `/qa-only`, `/design-review`, `/brainstorm`, `/canary`, `/pair-agent`, `/benchmark`, `/land-and-deploy`, `/design-shotgun`, `/design-consultation`, `/design-html`, `/plan-design-review`, and `/open-jstack-browser` invocation used to trigger Claude Code's sandbox asking about "tilde in assignment value." Replaced bare `~/` with `"$HOME/..."` in the browse and design resolvers plus a handful of templates that still used the old pattern. Every skill runs silently now.
+- **Multi-step QA actually works.** The `$B` browse server was dying between Bash tool invocations — Claude Code's sandbox kills the parent shell when a command finishes, and the server took that as a cue to shut down. Now the server persists across calls, keeping your cookies, page state, and navigation intact. Run `$B goto`, then `$B fill`, then `$B click` in three separate Bash calls and it just works. A 30-minute idle timeout still handles eventual cleanup. `Ctrl+C` and `/stop` still do an immediate shutdown.
+- **Cookie picker stops stranding the UI.** If the launching CLI exited mid-import, the picker page would flash `Failed to fetch` because the server had shut down under it. The browse server now stays alive while any picker code or session is live.
+- **OpenClaw skills load cleanly in Codex.** The 4 hand-authored ClawHub skills (ceo-review, investigate, office-hours, retro) had frontmatter with unquoted colons and non-standard `version`/`metadata` fields that stricter parsers rejected. Now they load without errors on Codex CLI and render correctly on GitHub.
+
+### For contributors
+- Community wave lands 6 PRs: #993 (byliu-labs), #994 (joelgreen), #996 (voidborne-d), #864 (cathrynlavery), #982 (breakneo), #892 (msr-hickory).
+- SIGTERM handling is now mode-aware. In normal mode the server ignores SIGTERM so Claude Code's sandbox doesn't tear it down mid-session. In headed mode (`/open-jstack-browser`) and tunnel mode (`/pair-agent`) SIGTERM still triggers a clean shutdown — those modes skip idle cleanup, so without the mode gate orphan daemons would accumulate forever. Note that v0.18.1.0 also disables the parent-PID watchdog when `BROWSE_HEADED=1`, so headed mode is doubly protected. Inline comments document the resolution order.
+- Windows v20 App-Bound Encryption CDP fallback now logs the Chrome version on entry and has an inline comment documenting the debug-port security posture (127.0.0.1-only, random port in [9222, 9321] for collision avoidance, always killed in finally).
+- New regression test `test/openclaw-native-skills.test.ts` pins OpenClaw skill frontmatter to `name` + `description` only — catches version/metadata drift at PR time.
+
+## [0.18.2.0] - 2026-04-17
+
+### Fixed
+- **`/ship` stops skipping `/document-release` ~80% of the time.** The old Step 8.5 told Claude to `cat` a 2500-line external skill file *after* the PR URL was already output, at which point the model had 500-1,750 lines of intermediate tool output in context and was at its least intelligent. Now `/ship` dispatches `/document-release` as a subagent that runs in a fresh context window, *before* creating the PR, so the `## Documentation` section gets baked into the initial PR body instead of a create-then-re-edit dance. The result: documentation actually syncs on every ship.
+
+### Changed
+- **`/ship`'s 4 heaviest sub-workflows now run in isolated subagent contexts.** Coverage audit (Step 7), plan completion audit (Step 8), Greptile triage (Step 10), and documentation sync (Step 18) each dispatch a subagent that gets a fresh context window. The parent only sees the conclusion (structured JSON), not the intermediate file reads. This is the pattern Anthropic's "Using Claude Code: Session Management and 1M Context" blog post recommends for fighting context rot: "Will I need this tool output again, or just the conclusion? If just the conclusion, use a subagent."
+- **`/ship` step numbers are clean integers 1-20 instead of fractional (`3.47`, `8.5`, `8.75`).** Fractional step numbers signaled "optional appendix" to the model and contributed to late-stage steps getting skipped. Clean integers feel mandatory. Resolver sub-steps that are genuinely nested (Plan Verification 8.1, Scope Drift 8.2, Review Army 9.1/9.2, Cross-review dedup 9.3) are preserved.
+- **`/ship` now prints "You are NOT done" after push.** Breaks the natural stopping point where the model was treating a pushed branch as mission-accomplished and skipping doc sync + PR creation.
+
+### For contributors
+- New regression guards in `test/skill-validation.test.ts` prevent drift back to fractional step numbers and catch cross-contamination between `/ship` and `/review` resolver conditionals.
+- Ship template restructure: old Step 8.5 (post-PR doc sync with `cat` delegation) replaced by new Step 18 (pre-PR subagent dispatch that invokes full `/document-release` skill with its CHANGELOG clobber protections, doc exclusions, risky-change gates, and race-safe PR body editing). Codex caught that the original plan's reimplementation dropped those protections; this version reuses the real `/document-release`.
+
+## [0.18.1.0] - 2026-04-16
+
+### Fixed
+- **`/open-jstack-browser` actually stays open now.** If you ran `/open-jstack-browser` or `$B connect` and your browser vanished roughly 15 seconds later, this was why: a watchdog inside the browse server was polling the CLI process that spawned it, and when the CLI exited (which it does, immediately, right after launching the browser), the watchdog said "orphan!" and killed everything. The fix disables that watchdog for headed mode, both in the CLI (always set `BROWSE_PARENT_PID=0` for headed launches) and in the server (skip the watchdog entirely when `BROWSE_HEADED=1`). Two layers of defense in case a future launcher forgets to pass the env var. Thanks to @rocke2020 (#1020), @sanghyuk-seo-nexcube (#1018), @rodbland2021 (#1012), and @jbetala7 (#986) for independently diagnosing this and sending in clean, well-documented fixes.
+- **Closing the headed browser window now cleans up properly.** Before this release, clicking the X on the GStack Browser window skipped the server's cleanup routine and exited the process directly. That left behind stale sidebar-agent processes polling a dead server, unsaved chat session state, leftover Chromium profile locks (which cause "profile in use" errors on the next `$B connect`), and a stale `browse.json` state file. Now the disconnect handler routes through the full `shutdown()` path first, cleans everything, and then exits with code 2 (which still distinguishes user-close from crash).
+- **CI/Claude Code Bash calls can now share a persistent headless server.** The headless spawn path used to hardcode the CLI's own PID as the watchdog target, ignoring `BROWSE_PARENT_PID=0` even if you set it in your environment. Now `BROWSE_PARENT_PID=0 $B goto https://...` keeps the server alive across short-lived CLI invocations, which is what multi-step workflows (CI matrices, Claude Code's Bash tool, cookie picker flows) actually want.
+- **`SIGTERM` / `SIGINT` shutdown now exits with code 0 instead of 1.** Regression caught during /ship's adversarial review: when `shutdown()` started accepting an `exitCode` argument, Node's signal listeners silently passed the signal name (`'SIGTERM'`) as the exit code, which got coerced to `NaN` and used `1`. Wrapped the listeners so they call `shutdown()` with no args. Your `Ctrl+C` now exits clean again.
+
+### For contributors
+- `test/relink.test.ts` no longer flakes under parallel test load. The 23 tests in that file each shell out to `jstack-config` + `jstack-relink` (bash subprocess work), and under `bun test` with other suites running, each test drifted ~200ms past Bun's 5s default. Wrapped `test` to default the per-test timeout to 15s with `Object.assign` preserving `.only`/`.skip`/`.each` sub-APIs.
+- `BrowserManager` gained an `onDisconnect` callback (wired by `server.ts` to `shutdown(2)`), replacing the direct `process.exit(2)` in the disconnect handler. The callback is wrapped with try/catch + Promise rejection handling so a rejecting cleanup path still exits the process instead of leaving a live server attached to a dead browser.
+- `shutdown()` now accepts an optional `exitCode: number = 0` parameter, used by the disconnect path (exit 2) and the signal path (default 0). Same cleanup code, two call sites, distinct exit codes.
+- `BROWSE_PARENT_PID` parsing in `cli.ts` now matches `server.ts`: `parseInt` instead of strict string equality, so `BROWSE_PARENT_PID=0\n` (common from shell `export`) is honored.
+
+## [0.18.0.1] - 2026-04-16
+
+### Fixed
+- **Windows install no longer fails with a build error.** If you installed jstack on Windows (or a fresh Linux box), `./setup` was dying with `cannot write multiple output files without an output directory`. The Windows-compat Node server bundle now builds cleanly, so `/browse`, `/canary`, `/pair-agent`, `/open-jstack-browser`, `/setup-browser-cookies`, and `/design-review` all work on Windows again. If you were stuck on jstack v0.15.11-era features without knowing it, this is why. Thanks to @tomasmontbrun-hash (#1019) and @scarson (#1013) for independently tracking this down, and to the issue reporters on #1010 and #960.
+- **CI stops lying about green builds.** The `build` and `test` scripts in `package.json` had a shell precedence trap where a trailing `|| true` swallowed failures from the *entire* command chain, not just the cleanup step it was meant for. That's how the Windows build bug above shipped in the first place — CI ran the build, the build failed, and CI reported success anyway. Now build and test failures actually fail. Silent CI is the worst kind of CI.
+- **`/pair-agent` on Windows surfaces install problems at install time, not tunnel time.** `./setup` now verifies Node can load `@ngrok/ngrok` on Windows, just like it already did for Playwright. If the native binary didn't install, you find out now instead of the first time you try to pair an agent.
+
+### For contributors
+- New `browse/test/build.test.ts` validates `server-node.mjs` is well-formed ES module syntax and that `@ngrok/ngrok` was actually externalized (not inlined). Gracefully skips when no prior build has run.
+- Added a policy comment in `browse/scripts/build-node-server.sh` explaining when and why to externalize a dependency. If you add a dep with a native addon or a dynamic `await import()`, the comment tells you where to plug it in.
+
+## [0.18.0.0] - 2026-04-15
+
+### Added
+- **Confusion Protocol.** Every workflow skill now has an inline ambiguity gate. When Claude hits a decision that could go two ways (which architecture? which data model? destructive operation with unclear scope?), it stops and asks instead of guessing. Scoped to high-stakes decisions only, so it doesn't slow down routine coding. Addresses Karpathy's #1 AI coding failure mode.
+- **Hermes host support.** jstack now generates skill docs for [Hermes Agent](https://github.com/nousresearch/hermes-agent) with proper tool rewrites (`terminal`, `read_file`, `patch`, `delegate_task`). `./setup --host hermes` prints integration instructions.
+- **GBrain host + brain-first resolver.** GBrain is a "mod" for jstack. When installed, your coding skills become brain-aware: they search your brain for relevant context before starting and save results to your brain after finishing. 10 skills are now brain-aware: /brainstorm, /investigate, /plan-ceo-review, /retro, /ship, /qa, /design-review, /plan-eng-review, /cso, and /design-consultation. Compatible with GBrain >= v0.10.0.
+- **GBrain v0.10.0 integration.** Agent instructions now use `gbrain search` (fast keyword lookup) instead of `gbrain query` (expensive hybrid). Every command shows full CLI syntax with `--title`, `--tags`, and heredoc examples. Keyword extraction guidance helps agents search effectively. Entity enrichment auto-creates stub pages for people and companies mentioned in skill output. Throttle errors are named so agents can detect and handle them. A preamble health check runs `gbrain doctor --fast --json` at session start and names failing checks when the brain is degraded.
+- **Skill triggers for GBrain router.** All 38 skill templates now include `triggers:` arrays in their frontmatter, multi-word keywords like "debug this", "ship it", "brainstorm this". These power GBrain's RESOLVER.md skill router and pass `checkResolvable()` validation. Distinct from `voice-triggers:` (speech-to-text aliases).
+- **Hermes brain support.** Hermes agents with GBrain installed as a mod now get brain features automatically. The resolver fallback logic ("if GBrain is not available, proceed without") handles non-GBrain Hermes installs gracefully.
+- **slop:diff in /review.** Every code review now runs `bun run slop:diff` as an advisory diagnostic, catching AI code quality issues (empty catches, redundant abstractions, overcomplicated patterns) before they land. Informational only, never blocking.
+- **Karpathy compatibility.** README now positions jstack as the workflow enforcement layer for [Karpathy-style CLAUDE.md rules](https://github.com/forrestchang/andrej-karpathy-skills) (17K stars). Maps each failure mode to the jstack skill that addresses it.
+
+### Changed
+- **CEO review HARD GATE reinforcement.** "Do NOT make any code changes. Review only." now repeats at every STOP point (12 locations), not just the top. Prompt repetition measurably reduces the "starts implementing" failure mode.
+- **Office-hours design doc visibility.** After writing the design doc, the skill now prints the full path so downstream skills (/plan-ceo-review, /plan-eng-review) can find it.
+- **Investigate investigation history.** Each investigation now logs to the learnings system with `type: "investigation"` and affected file paths. Future investigations on the same files surface prior root causes automatically. Recurring bugs in the same area = architectural smell.
+- **Retro non-git context.** If `~/.jstack/retro-context.md` exists, the retro now reads it for meeting notes, calendar events, and decisions that don't appear in git history.
+- **Native OpenClaw skills improved.** The 4 hand-crafted ClawHub skills (office-hours, ceo-review, investigate, retro) now mirror the template improvements above.
+- **Host count: 8 to 10.** Hermes and GBrain join Claude, Codex, Factory, Kiro, OpenCode, Slate, Cursor, and OpenClaw.
+
+## [0.17.0.0] - 2026-04-14
+
+### Added
+- **UX behavioral foundations.** Every design skill now thinks about how users actually behave, not just how the interface looks. A shared `{{UX_PRINCIPLES}}` resolver distills Steve Krug's "Don't Make Me Think" into actionable guidance: scanning behavior, satisficing, the goodwill reservoir, navigation wayfinding, and the trunk test. Injected into /design-html, /design-shotgun, /design-review, and /plan-design-review. Your design reviews now catch "this navigation is confusing" problems, not just "the contrast ratio is 4.3:1."
+- **6 usability tests woven into design-review.** The methodology now runs the Trunk Test (can you tell what site this is, what page you're on, and how to search?), 3-Second Scan (what do users see first?), Page Area Test (can you name each section's purpose?), Happy Talk Detection with word count (how much of this page is "blah blah blah"?), Mindless Choice Audit (does every click feel obvious?), and Goodwill Reservoir tracking with a visual dashboard (what depletes the user's patience at each step?).
+- **First-person narration mode.** Design review reports now read like a usability consultant watching someone use your site: "I'm looking at this page... my eye goes to the logo, then a wall of text I skip entirely. Wait, is that a button?" With anti-slop guardrail: if the agent can't name the specific element, it's generating platitudes.
+- **`$B ux-audit` command.** Standalone UX structural extraction. One command extracts site ID, navigation, headings, interactive elements, text blocks, and search presence as structured JSON. The agent applies the 6 usability tests to the data. Pure data extraction with element caps (50 headings, 100 links, 200 interactive, 50 text blocks).
+- **`snapshot -H` / `--heatmap` flag.** Color-coded overlay screenshots. Pass a JSON map of ref IDs to colors (`green`/`yellow`/`red`/`blue`/`orange`/`gray`) and get an annotated screenshot with per-element colored boxes. Color whitelist prevents CSS injection. Composable: any skill can use it.
+- **Token ceiling enforcement.** `gen-skill-docs` now warns if any generated SKILL.md exceeds 100KB (~25K tokens). Catches prompt bloat before it degrades agent performance.
+
+### Changed
+- **Krug's always/never rules** added to the design hard rules: never placeholder-as-label, never floating headings, always visited link distinction, never sub-16px body text. These join the existing AI slop blacklist as mechanical checks.
+- **Plan-design-review references** now include Steve Krug, Ginny Redish (Letting Go of the Words), and Caroline Jarrett (Forms that Work) alongside Rams, Norman, and Nielsen.
+
+## [0.16.4.0] - 2026-04-13
+
+### Added
+- **Cookie origin pinning.** When you import cookies for specific domains, JS execution is now blocked on pages that don't match those domains. This prevents the attack where a prompt injection navigates to an attacker's site and runs `document.cookie` to steal your imported cookies. Subdomain matching works automatically (importing `.github.com` allows `api.github.com`). When no cookies are imported, everything works as before. 3 PRs from @halbert04.
+- **Command audit log.** Every browse command now gets a persistent forensic trail in `~/.jstack/.browse/browse-audit.jsonl`. Timestamp, command, args, page origin, duration, status, error, and whether cookies were imported. Append-only, never truncated, survives server restarts. Best-effort writes that never block command execution. From @halbert04.
+- **Cookie domain tracking.** jstack now tracks which domains cookies were imported from. Foundation for origin pinning above. Direct imports via `--domain` track automatically. New `--all` flag makes full-browser cookie import an explicit opt-in instead of the default.
+
+### Fixed
+- **Symlink bypass in file writes.** `validateOutputPath` only checked the parent directory for symlinks, not the file itself. A symlink at `/tmp/evil.png` pointing to `/etc/crontab` passed validation because the parent `/tmp` was safe. Now checks the file with `lstatSync` before writing. From @Hybirdss.
+- **Cookie-import path bypass.** Two issues: relative paths bypassed all validation (the `path.isAbsolute()` gate let `sensitive-file.json` through), and symlink resolution was missing (`path.resolve` without `realpathSync`). Now resolves to absolute, resolves symlinks, and checks against safe directories. From @urbantech.
+- **Shell injection in setup scripts.** `jstack-settings-hook` interpolated file paths directly into `bun -e` JavaScript blocks. A path with quotes broke the JS string context. Now uses environment variables (`process.env`). Systematic audit confirmed only this script was vulnerable. From @garagon.
+- **Form field credential leak.** Snapshot redaction only applied to `type="password"` fields. Hidden and text fields named `csrf_token`, `api_key`, `session_id` were exposed unredacted in LLM context. Now checks field name and id against sensitive patterns. From @garagon.
+- **Learnings prompt injection.** Three fixes: input validation (type/key/confidence allowlists), injection pattern detection in insight field (blocks "ignore previous instructions" etc.), and cross-project trust gate (only user-stated learnings cross project boundaries). From @Ziadstr.
+- **IPv6 metadata bypass.** The URL constructor normalizes `::ffff:169.254.169.254` to `::ffff:a9fe:a9fe` (hex), which wasn't in the blocklist. Added both hex-encoded forms. From @mehmoodosman.
+- **Session files world-readable.** Design session files in `/tmp` were created with default permissions (0644). Now 0600 (owner-only). From @garagon.
+- **Frozen lockfile in setup.** `bun install` now uses `--frozen-lockfile` to prevent supply chain attacks via floating semver ranges. From @halbert04.
+- **Dockerfile chmod fix.** Removed duplicate recursive `chmod -R 1777 /tmp` (recursive sticky bit on files has no defined behavior). From @Gonzih.
+- **Hardcoded /tmp in cookie import.** `cookie-import-browser` used `/tmp` directly instead of `os.tmpdir()`, breaking Windows support.
+
+### Security
+- Closed 14 security issues (#665-#675, #566, #479, #467, #545) that were fixed in prior waves but still open on GitHub.
+- Closed 17 community security PRs with thank-you messages and commit references.
+- Security wave 3: 12 fixes, 7 contributors. Big thanks to @Hybirdss, @urbantech, @garagon, @Ziadstr, @halbert04, @mehmoodosman, @Gonzih.
+
+## [0.16.3.0] - 2026-04-09
+
+### Changed
+- **AI slop cleanup.** Ran [slop-scan](https://github.com/benvinegar/slop-scan) and dropped from 100 findings (2.38 score/file) to 90 findings (1.96 score/file). The good part: `safeUnlink()` and `safeKill()` utilities that catch real bugs (swallowed EPERM in shutdown was a silent data loss risk). `safeUnlinkQuiet()` for cleanup paths where throwing is worse than swallowing. `isProcessAlive()` extracted to a shared module with Windows support. Redundant `return await` removed. Typed exception catches (TypeError, DOMException, ENOENT) replace empty catches in system boundary code. The part we tried and reverted: string-matching on error messages was brittle, extension catch-and-log was correct as-is, pass-through wrapper comments were linter gaming. We are AI-coded and proud of it. The goal is code quality, not hiding.
+
+### Added
+- **`bun run slop:diff`** shows only NEW slop-scan findings introduced on your branch vs main. Line-number-insensitive comparison so shifted code doesn't create false positives. Runs automatically after `bun test`.
+- **Slop-scan usage guidelines** in CLAUDE.md: what to fix (genuine quality) vs what NOT to fix (linter gaming). Includes utility function reference table.
+- **Design doc** for future slop-scan integration in `/review` and `/ship` skills (`docs/designs/SLOP_SCAN_FOR_REVIEW_SHIP.md`).
+
+## [0.16.2.0] - 2026-04-09
+
+### Added
+- **Office hours now remembers you.** The closing experience adapts based on how many sessions you've done. First time: full YC plea and founder resources. Sessions 2-3: "Welcome back. Last time you were working on [your project]. How's it going?" Sessions 4-7: arc-level callbacks across your whole journey, accumulated signal visibility, and an auto-generated Builder Journey narrative. Sessions 8+: the data speaks for itself.
+- **Builder profile** tracks your office hours journey in a single append-only session log. Signals, design docs, assignments, topics, and resources shown, all in one file. No split-brain state, no separate config keys.
+- **Builder-to-founder nudge** for repeat builder-mode users who accumulate founder signals. Evidence-gated: only triggers when you've shown 5+ signals across 3+ builder sessions. Not a pitch. An observation.
+- **Journey-matched resources.** Instead of category-matching from the static pool, resources now match your accumulated session context. "You've been iterating on a fintech idea for 3 sessions... Tom Blomfield built Monzo from exactly this kind of persistence."
+- **Builder Journey Summary** auto-generates at session 5+ and opens in your browser. A narrative arc of your journey, not a data table. Written in second person, referencing specific things you said across sessions.
+- **Global resource dedup.** Resource links now dedup globally (not per-project), so switching repos doesn't reset your watch history. Each link shows only once, ever.
+
+### Fixed
+- package.json version now stays in sync with VERSION file.
+
+## [0.16.1.0] - 2026-04-08
+
+### Fixed
+- Cookie picker no longer leaks the browse server auth token. Previously, opening the cookie picker page exposed the master bearer token in the HTML source, letting any local process extract it and execute arbitrary JavaScript in your browser session. Now uses a one-time code exchange with an HttpOnly session cookie. The token never appears in HTML, URLs, or browser history. (Reported by Horoshi at Vagabond Research, CVSS 7.8)
+
+## [0.16.0.0] - 2026-04-07
+
+### Added
+- **Browser data platform.** Six new browse commands that turn jstack browser from "a thing that clicks buttons" into a full scraping and data extraction tool for AI agents.
+- `media` command: discover every image, video, and audio element on a page. Returns URLs, dimensions, srcset, lazy-load state, and detects HLS/DASH streams. Filter with `--images`, `--videos`, `--audio`, or scope with a CSS selector.
+- `data` command: extract structured data embedded in pages. JSON-LD (product prices, recipes, events), Open Graph, Twitter Cards, and meta tags. One command gives you what used to take 50 lines of DOM scraping.
+- `download` command: fetch any URL or `@ref` element to disk using the browser's session cookies. Handles blob URLs via in-page base64 conversion. `--base64` flag returns inline data URI for remote agents. Detects HLS/DASH and tells you to use yt-dlp instead of silently failing.
+- `scrape` command: bulk download all media from a page. Combines `media` discovery + `download` in a loop with URL deduplication, configurable limits, and a `manifest.json` for machine consumption.
+- `archive` command: save complete pages as MHTML via CDP. One command, full page with all resources.
+- `scroll --times N`: automated repeated scrolling for infinite feed content loading. Configurable delay between scrolls with `--wait`.
+- `screenshot --base64`: return screenshots as inline data URIs instead of file paths. Eliminates the two-step screenshot-then-file-serve dance for remote agents.
+- **Network response body capture.** `network --capture` intercepts API response bodies so agents get structured JSON instead of fragile DOM scraping. Filter by URL pattern (`--filter graphql`), export as JSONL (`--export`), view summary (`--bodies`). 50MB size-capped buffer with automatic eviction.
+- `GET /file` endpoint: remote paired agents can now retrieve downloaded files (images, scraped media, screenshots) over HTTP. TEMP_DIR only to prevent project file exfiltration. Bearer token auth, MIME detection, zero-copy streaming via `Bun.file()`.
+
+### Changed
+- Paired agents now get full access by default (read+write+admin+meta). The trust boundary is the pairing ceremony, not the scope. An agent that can click any button doesn't gain meaningful attack surface from also being able to run `js`. Browser-wide destructive commands (stop, restart, disconnect) moved to new `control` scope, still opt-in via `--control`.
+- Path validation extracted to shared `path-security.ts` module. Was duplicated across three files with slightly different implementations. Now one source of truth with `validateOutputPath`, `validateReadPath`, and `validateTempPath`.
+
+## [0.15.16.0] - 2026-04-06
+
+### Added
+- Per-tab state isolation via TabSession. Each browser tab now has its own ref map, snapshot baseline, and frame context. Previously these were global on BrowserManager, meaning snapshot refs from one tab could collide with another. This is the foundation for parallel multi-tab operations.
+- Batch endpoint documentation in BROWSER.md with API shape, design decisions, and usage patterns.
+
+### Changed
+- Handler signatures across read-commands, write-commands, meta-commands, and snapshot now accept TabSession for per-tab operations and BrowserManager for global operations. This separation makes it explicit which operations are tab-scoped vs browser-scoped.
+
+### Fixed
+- codex-review E2E test was copying the full 55KB SKILL.md (1,075 lines), burning 8 Read calls just to consume it and exhausting the 15-turn budget before reaching the actual review. Now extracts only the review-relevant section (~6KB/148 lines), cutting Read calls from 8 to 1. Test goes from perpetual timeout to passing in 141s.
+
+## [0.15.15.1] - 2026-04-06
+
+### Fixed
+- pair-agent tunnel drops after 15 seconds. The browse server was monitoring its parent process ID and self-terminating when the CLI exited. Now pair-agent sessions disable the parent watchdog so the server and tunnel stay alive.
+- `$B connect` crashes with "domains is not defined". A stray variable reference in the headed-mode status check prevented GStack Browser from initializing properly.
+
+## [0.15.15.0] - 2026-04-06
+
+Community security wave: 8 PRs from 4 contributors, every fix credited as co-author.
+
+### Added
+- Cookie value redaction for tokens, API keys, JWTs, and session secrets in `browse cookies` output. Your secrets no longer appear in Claude's context.
+- IPv6 ULA prefix blocking (fc00::/7) in URL validation. Covers the full unique-local range, not just the literal `fd00::`. Hostnames like `fcustomer.com` are not false-positived.
+- Per-tab cancel signaling for sidebar agents. Stopping one tab's agent no longer kills all tabs.
+- Parent process watchdog for the browse server. When Claude Code exits, orphaned browser processes now self-terminate within 15 seconds.
+- Uninstall instructions in README (script + manual removal steps).
 - CSS value validation blocks `url()`, `expression()`, `@import`, `javascript:`, and `data:` in style commands, preventing CSS injection attacks.
 - Queue entry schema validation (`isValidQueueEntry`) with path traversal checks on `stateFile` and `cwd`.
 - Viewport dimension clamping (1-16384) and wait timeout clamping (1s-300s) prevent OOM and runaway waits.
@@ -83,12 +304,37 @@ Hat tip to Jared Friedman for the design.
 - **Vendoring is deprecated.** README no longer recommends copying jstack into your repo. Global install + `--team` is the way. `--local` flag still works but prints a deprecation warning.
 - **Uninstall cleans up hooks.** `jstack-uninstall` now removes the SessionStart hook from `~/.claude/settings.json`.
 
-## [0.15.12.0] - 2026-04-06
+## [0.15.12.0] - 2026-04-05 — Content Security: 4-Layer Prompt Injection Defense
+
+When you share your browser with another AI agent via `/pair-agent`, that agent reads web pages. Web pages can contain prompt injection attacks. Hidden text, fake system messages, social engineering in product reviews. This release adds four layers of defense so remote agents can safely browse untrusted sites without being tricked.
+
+### Added
+
+- **Content envelope wrapping.** Every page read by a scoped agent is wrapped in `═══ BEGIN UNTRUSTED WEB CONTENT ═══` / `═══ END UNTRUSTED WEB CONTENT ═══` markers. The agent's instruction block tells it to never follow instructions found inside these markers. Envelope markers in page content are escaped with zero-width spaces to prevent boundary escape attacks.
+- **Hidden element stripping.** CSS-hidden elements (opacity < 0.1, font-size < 1px, off-screen positioning, same fg/bg color, clip-path, visibility:hidden) and ARIA label injections are detected and stripped from text output. The page DOM is never mutated. Uses clone + remove for text extraction, CSS injection for snapshots.
+- **Datamarking.** Text command output gets a session-scoped watermark (4-char random marker inserted as zero-width characters). If the content appears somewhere it shouldn't, the marker traces back to the session. Only applied to `text` command, not structured data like `html` or `forms`.
+- **Content filter hooks.** Extensible filter pipeline with `BROWSE_CONTENT_FILTER` env var (off/warn/block, default: warn). Built-in URL blocklist catches requestbin, pipedream, webhook.site, and other known exfiltration domains. Register custom filters for your own rules.
+- **Snapshot split format.** Scoped tokens get a split snapshot: trusted `@ref` labels (for click/fill) above the untrusted content envelope. The agent knows which refs are safe to use and which content is untrusted. Root tokens unchanged.
+- **SECURITY section in instruction block.** Remote agents now receive explicit warnings about prompt injection, with a list of common injection phrases and guidance to only use @refs from the trusted section.
+- **47 content security tests.** Covers all four layers plus chain security, envelope escaping, ARIA injection detection, false positive checks, and combined attack scenarios. Four injection fixture HTML pages for testing.
+
+### Changed
+
+- `handleCommand` refactored into `handleCommandInternal` (returns structured result) + thin HTTP wrapper. Chain subcommands now route through the full security pipeline (scope, domain, tab ownership, content wrapping) instead of bypassing it.
+- `attrs` added to `PAGE_CONTENT_COMMANDS` (ARIA attribute values are now wrapped as untrusted content).
+- Content wrapping centralized in one location in `handleCommandInternal` response path. Was fragmented across 6 call sites.
 
 ### Fixed
-- `snapshot -i` now auto-includes cursor-interactive elements (dropdown items, popover options, custom listboxes). Previously you had to remember to pass `-C` separately — now `-i` alone finds everything clickable on the page.
-- Snapshot correctly captures items inside floating containers (React portals, Radix Popover, Floating UI) even when they have ARIA roles. Previously these were silently skipped because the accessibility tree sometimes misses dynamically-rendered portals.
-- Dropdown/menu items with `role="option"` or `role="menuitem"` inside popovers are now captured and tagged with `popover-child` in the reason string, making them easy to identify.
+
+- `snapshot -i` now auto-includes cursor-interactive elements (dropdown items, popover options, custom listboxes). Previously you had to remember to pass `-C` separately.
+- Snapshot correctly captures items inside floating containers (React portals, Radix Popover, Floating UI) even when they have ARIA roles.
+- Dropdown/menu items with `role="option"` or `role="menuitem"` inside popovers are now captured and tagged with `popover-child`.
+- Chain commands now check domain restrictions on `newtab` (was only checking `goto`).
+- Nested chain commands rejected (recursion guard prevents chain-within-chain).
+- Rate limiting exemption for chain subcommands (chain counts as 1 request, not N).
+- Tunnel liveness verification: `/pair-agent` now probes the tunnel before using it, preventing dead tunnel URLs from reaching remote agents.
+- `/health` serves auth token on localhost for extension authentication (stripped when tunneled).
+- All 16 pre-existing test failures fixed (pair-agent skill compliance, golden file baselines, host smoke tests, relink test timeouts).
 
 ## [0.15.11.0] - 2026-04-05
 
