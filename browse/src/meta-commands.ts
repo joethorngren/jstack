@@ -5,49 +5,18 @@
 import type { BrowserManager } from './browser-manager';
 import { handleSnapshot } from './snapshot';
 import { getCleanText } from './read-commands';
-import { READ_COMMANDS, WRITE_COMMANDS, META_COMMANDS, PAGE_CONTENT_COMMANDS, wrapUntrustedContent } from './commands';
+import { READ_COMMANDS, WRITE_COMMANDS, META_COMMANDS, PAGE_CONTENT_COMMANDS, wrapUntrustedContent, canonicalizeCommand } from './commands';
 import { validateNavigationUrl } from './url-validation';
+import { checkScope, type TokenInfo } from './token-registry';
+import { validateOutputPath, escapeRegExp } from './path-security';
+// Re-export for backward compatibility (tests import from meta-commands)
+export { validateOutputPath, escapeRegExp } from './path-security';
 import * as Diff from 'diff';
 import * as fs from 'fs';
 import * as path from 'path';
-import { TEMP_DIR, isPathWithin } from './platform';
+import { TEMP_DIR } from './platform';
 import { resolveConfig } from './config';
 import type { Frame } from 'playwright';
-
-// Security: Path validation to prevent path traversal attacks
-// Resolve safe directories through realpathSync to handle symlinks (e.g., macOS /tmp → /private/tmp)
-const SAFE_DIRECTORIES = [TEMP_DIR, process.cwd()].map(d => {
-  try { return fs.realpathSync(d); } catch { return d; }
-});
-
-export function validateOutputPath(filePath: string): void {
-  const resolved = path.resolve(filePath);
-
-  // Resolve real path of the parent directory to catch symlinks.
-  // The file itself may not exist yet (e.g., screenshot output).
-  let dir = path.dirname(resolved);
-  let realDir: string;
-  try {
-    realDir = fs.realpathSync(dir);
-  } catch {
-    try {
-      realDir = fs.realpathSync(path.dirname(dir));
-    } catch {
-      throw new Error(`Path must be within: ${SAFE_DIRECTORIES.join(', ')}`);
-    }
-  }
-
-  const realResolved = path.join(realDir, path.basename(resolved));
-  const isSafe = SAFE_DIRECTORIES.some(dir => isPathWithin(realResolved, dir));
-  if (!isSafe) {
-    throw new Error(`Path must be within: ${SAFE_DIRECTORIES.join(', ')}`);
-  }
-}
-
-/** Escape special regex metacharacters in a user-supplied string to prevent ReDoS. */
-export function escapeRegExp(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
 
 /** Tokenize a pipe segment respecting double-quoted strings. */
 function tokenizePipeSegment(segment: string): string[] {
@@ -68,12 +37,24 @@ function tokenizePipeSegment(segment: string): string[] {
   return tokens;
 }
 
+/** Options passed from handleCommandInternal for chain routing */
+export interface MetaCommandOpts {
+  chainDepth?: number;
+  /** Callback to route subcommands through the full security pipeline (handleCommandInternal) */
+  executeCommand?: (body: { command: string; args?: string[]; tabId?: number }, tokenInfo?: TokenInfo | null) => Promise<{ status: number; result: string; json?: boolean }>;
+}
+
 export async function handleMetaCommand(
   command: string,
   args: string[],
   bm: BrowserManager,
-  shutdown: () => Promise<void> | void
+  shutdown: () => Promise<void> | void,
+  tokenInfo?: TokenInfo | null,
+  opts?: MetaCommandOpts,
 ): Promise<string> {
+  // Per-tab operations use the active session; global operations use bm directly
+  const session = bm.getActiveSession();
+
   switch (command) {
     // ─── Tabs ──────────────────────────────────────────
     case 'tabs': {
@@ -134,17 +115,24 @@ export async function handleMetaCommand(
 
     // ─── Visual ────────────────────────────────────────
     case 'screenshot': {
-      // Parse priority: flags (--viewport, --clip) → selector (@ref, CSS) → output path
+      // Parse priority: flags (--viewport, --clip, --base64) → selector (@ref, CSS) → output path
       const page = bm.getPage();
       let outputPath = `${TEMP_DIR}/browse-screenshot.png`;
       let clipRect: { x: number; y: number; width: number; height: number } | undefined;
       let targetSelector: string | undefined;
       let viewportOnly = false;
+      let base64Mode = false;
 
       const remaining: string[] = [];
+      let flagSelector: string | undefined;
       for (let i = 0; i < args.length; i++) {
         if (args[i] === '--viewport') {
           viewportOnly = true;
+        } else if (args[i] === '--base64') {
+          base64Mode = true;
+        } else if (args[i] === '--selector') {
+          flagSelector = args[++i];
+          if (!flagSelector) throw new Error('Usage: screenshot --selector <css> [path]');
         } else if (args[i] === '--clip') {
           const coords = args[++i];
           if (!coords) throw new Error('Usage: screenshot --clip x,y,w,h [path]');
@@ -172,6 +160,14 @@ export async function handleMetaCommand(
         }
       }
 
+      // --selector flag takes precedence; conflict with positional selector.
+      if (flagSelector !== undefined) {
+        if (targetSelector !== undefined) {
+          throw new Error('--selector conflicts with positional selector — choose one');
+        }
+        targetSelector = flagSelector;
+      }
+
       validateOutputPath(outputPath);
 
       if (clipRect && targetSelector) {
@@ -179,6 +175,24 @@ export async function handleMetaCommand(
       }
       if (viewportOnly && clipRect) {
         throw new Error('Cannot use --viewport with --clip — choose one');
+      }
+
+      // --base64 mode: capture to buffer instead of disk
+      if (base64Mode) {
+        let buffer: Buffer;
+        if (targetSelector) {
+          const resolved = await bm.resolveRef(targetSelector);
+          const locator = 'locator' in resolved ? resolved.locator : page.locator(resolved.selector);
+          buffer = await locator.screenshot({ timeout: 5000 });
+        } else if (clipRect) {
+          buffer = await page.screenshot({ clip: clipRect });
+        } else {
+          buffer = await page.screenshot({ fullPage: !viewportOnly });
+        }
+        if (buffer.length > 10 * 1024 * 1024) {
+          throw new Error('Screenshot too large for --base64 (>10MB). Use disk path instead.');
+        }
+        return `data:image/png;base64,${buffer.toString('base64')}`;
       }
 
       if (targetSelector) {
@@ -242,48 +256,103 @@ export async function handleMetaCommand(
         '   or: browse chain \'goto url | click @e5 | snapshot -ic\''
       );
 
-      let commands: string[][];
+      let rawCommands: string[][];
       try {
-        commands = JSON.parse(jsonStr);
-        if (!Array.isArray(commands)) throw new Error('not array');
-      } catch {
+        rawCommands = JSON.parse(jsonStr);
+        if (!Array.isArray(rawCommands)) throw new Error('not array');
+      } catch (err: any) {
         // Fallback: pipe-delimited format "goto url | click @e5 | snapshot -ic"
-        commands = jsonStr.split(' | ')
+        if (!(err instanceof SyntaxError) && err?.message !== 'not array') throw err;
+        rawCommands = jsonStr.split(' | ')
           .filter(seg => seg.trim().length > 0)
           .map(seg => tokenizePipeSegment(seg.trim()));
       }
 
-      const results: string[] = [];
-      const { handleReadCommand } = await import('./read-commands');
-      const { handleWriteCommand } = await import('./write-commands');
+      // Canonicalize aliases across the whole chain. Pair canonical name with the raw
+      // input so result labels + error messages reflect what the user typed, but every
+      // dispatch path (scope check, WRITE_COMMANDS.has, watch blocking, handler lookup)
+      // uses the canonical name. Otherwise `chain '[["setcontent","/tmp/x.html"]]'`
+      // bypasses prevalidation or runs under the wrong command set.
+      const commands = rawCommands.map(cmd => {
+        const [rawName, ...cmdArgs] = cmd;
+        const name = canonicalizeCommand(rawName);
+        return { rawName, name, args: cmdArgs };
+      });
 
-      let lastWasWrite = false;
-      for (const cmd of commands) {
-        const [name, ...cmdArgs] = cmd;
-        try {
-          let result: string;
-          if (WRITE_COMMANDS.has(name)) {
-            if (bm.isWatching()) {
-              result = 'BLOCKED: write commands disabled in watch mode';
-            } else {
-              result = await handleWriteCommand(name, cmdArgs, bm);
-            }
-            lastWasWrite = true;
-          } else if (READ_COMMANDS.has(name)) {
-            result = await handleReadCommand(name, cmdArgs, bm);
-            if (PAGE_CONTENT_COMMANDS.has(name)) {
-              result = wrapUntrustedContent(result, bm.getCurrentUrl());
-            }
-            lastWasWrite = false;
-          } else if (META_COMMANDS.has(name)) {
-            result = await handleMetaCommand(name, cmdArgs, bm, shutdown);
-            lastWasWrite = false;
-          } else {
-            throw new Error(`Unknown command: ${name}`);
+      // Pre-validate ALL subcommands against the token's scope before executing any.
+      // Uses canonical name so aliases don't bypass scope checks.
+      if (tokenInfo && tokenInfo.clientId !== 'root') {
+        for (const c of commands) {
+          if (!checkScope(tokenInfo, c.name)) {
+            throw new Error(
+              `Chain rejected: subcommand "${c.rawName}" not allowed by your token scope (${tokenInfo.scopes.join(', ')}). ` +
+              `All subcommands must be within scope.`
+            );
           }
-          results.push(`[${name}] ${result}`);
-        } catch (err: any) {
-          results.push(`[${name}] ERROR: ${err.message}`);
+        }
+      }
+
+      // Route each subcommand through handleCommandInternal for full security:
+      // scope, domain, tab ownership, content wrapping — all enforced per subcommand.
+      // Chain-specific options: skip rate check (chain = 1 request), skip activity
+      // events (chain emits 1 event), increment chain depth (recursion guard).
+      const executeCmd = opts?.executeCommand;
+      const results: string[] = [];
+      let lastWasWrite = false;
+
+      if (executeCmd) {
+        // Full security pipeline via handleCommandInternal.
+        // Pass rawName so the server's own canonicalization is a no-op (already canonical).
+        for (const c of commands) {
+          const cr = await executeCmd(
+            { command: c.name, args: c.args },
+            tokenInfo,
+          );
+          const label = c.rawName === c.name ? c.name : `${c.rawName}→${c.name}`;
+          if (cr.status === 200) {
+            results.push(`[${label}] ${cr.result}`);
+          } else {
+            // Parse error from JSON result
+            let errMsg = cr.result;
+            try { errMsg = JSON.parse(cr.result).error || cr.result; } catch (err: any) { if (!(err instanceof SyntaxError)) throw err; }
+            results.push(`[${label}] ERROR: ${errMsg}`);
+          }
+          lastWasWrite = WRITE_COMMANDS.has(c.name);
+        }
+      } else {
+        // Fallback: direct dispatch (CLI mode, no server context)
+        const { handleReadCommand } = await import('./read-commands');
+        const { handleWriteCommand } = await import('./write-commands');
+
+        for (const c of commands) {
+          const name = c.name;
+          const cmdArgs = c.args;
+          const label = c.rawName === name ? name : `${c.rawName}→${name}`;
+          try {
+            let result: string;
+            if (WRITE_COMMANDS.has(name)) {
+              if (bm.isWatching()) {
+                result = 'BLOCKED: write commands disabled in watch mode';
+              } else {
+                result = await handleWriteCommand(name, cmdArgs, session, bm);
+              }
+              lastWasWrite = true;
+            } else if (READ_COMMANDS.has(name)) {
+              result = await handleReadCommand(name, cmdArgs, session);
+              if (PAGE_CONTENT_COMMANDS.has(name)) {
+                result = wrapUntrustedContent(result, bm.getCurrentUrl());
+              }
+              lastWasWrite = false;
+            } else if (META_COMMANDS.has(name)) {
+              result = await handleMetaCommand(name, cmdArgs, bm, shutdown, tokenInfo, opts);
+              lastWasWrite = false;
+            } else {
+              throw new Error(`Unknown command: ${c.rawName}`);
+            }
+            results.push(`[${label}] ${result}`);
+          } catch (err: any) {
+            results.push(`[${label}] ERROR: ${err.message}`);
+          }
         }
       }
 
@@ -301,12 +370,12 @@ export async function handleMetaCommand(
       if (!url1 || !url2) throw new Error('Usage: browse diff <url1> <url2>');
 
       const page = bm.getPage();
-      await validateNavigationUrl(url1);
-      await page.goto(url1, { waitUntil: 'domcontentloaded', timeout: 15000 });
+      const normalizedUrl1 = await validateNavigationUrl(url1);
+      await page.goto(normalizedUrl1, { waitUntil: 'domcontentloaded', timeout: 15000 });
       const text1 = await getCleanText(page);
 
-      await validateNavigationUrl(url2);
-      await page.goto(url2, { waitUntil: 'domcontentloaded', timeout: 15000 });
+      const normalizedUrl2 = await validateNavigationUrl(url2);
+      await page.goto(normalizedUrl2, { waitUntil: 'domcontentloaded', timeout: 15000 });
       const text2 = await getCleanText(page);
 
       const changes = Diff.diffLines(text1, text2);
@@ -325,7 +394,14 @@ export async function handleMetaCommand(
 
     // ─── Snapshot ─────────────────────────────────────
     case 'snapshot': {
-      const snapshotResult = await handleSnapshot(args, bm);
+      const isScoped = tokenInfo && tokenInfo.clientId !== 'root';
+      const snapshotResult = await handleSnapshot(args, session, {
+        splitForScoped: !!isScoped,
+      });
+      // Scoped tokens get split format (refs outside envelope); root gets basic wrapping
+      if (isScoped) {
+        return snapshotResult; // already has envelope from split format
+      }
       return wrapUntrustedContent(snapshotResult, bm.getCurrentUrl());
     }
 
@@ -338,7 +414,11 @@ export async function handleMetaCommand(
     case 'resume': {
       bm.resume();
       // Re-snapshot to capture current page state after human interaction
-      const snapshot = await handleSnapshot(['-i'], bm);
+      const isScoped2 = tokenInfo && tokenInfo.clientId !== 'root';
+      const snapshot = await handleSnapshot(['-i'], session, { splitForScoped: !!isScoped2 });
+      if (isScoped2) {
+        return `RESUMED\n${snapshot}`;
+      }
       return `RESUMED\n${wrapUntrustedContent(snapshot, bm.getCurrentUrl())}`;
     }
 
@@ -376,8 +456,9 @@ export async function handleMetaCommand(
             execSync(`osascript -e 'tell application "${appName}" to activate'`, { stdio: 'pipe', timeout: 3000 });
             activated = true;
             break;
-          } catch {
-            // Try next browser
+          } catch (err: any) {
+            // Try next browser — osascript fails if app not found or AppleScript errors
+            if (err?.status === undefined && !err?.message?.includes('Command failed')) throw err;
           }
         }
 
@@ -393,8 +474,9 @@ export async function handleMetaCommand(
               await resolved.locator.scrollIntoViewIfNeeded({ timeout: 5000 });
               return `Browser activated. Scrolled ${args[0]} into view.`;
             }
-          } catch {
-            // Ref not found — still activated the browser
+          } catch (err: any) {
+            // Ref not found or element gone — still activated the browser
+            if (!err?.message?.includes('not found') && !err?.message?.includes('closed') && !err?.message?.includes('Target') && !err?.message?.includes('timeout')) throw err;
           }
         }
 
@@ -436,7 +518,9 @@ export async function handleMetaCommand(
       let gitRoot: string;
       try {
         gitRoot = execSync('git rev-parse --show-toplevel', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
-      } catch {
+      } catch (err: any) {
+        // execSync throws with exit status on non-git directories
+        if (err?.status === undefined && !err?.message?.includes('Command failed')) throw err;
         return 'Not in a git repository — cannot locate inbox.';
       }
 
@@ -459,8 +543,9 @@ export async function handleMetaCommand(
             url: data.page?.url || 'unknown',
             userMessage: data.userMessage || '',
           });
-        } catch {
-          // Skip malformed files
+        } catch (err: any) {
+          // Skip malformed JSON or unreadable files
+          if (!(err instanceof SyntaxError) && err?.code !== 'ENOENT' && err?.code !== 'EACCES') throw err;
         }
       }
 
@@ -482,7 +567,7 @@ export async function handleMetaCommand(
       // Handle --clear flag
       if (args.includes('--clear')) {
         for (const file of files) {
-          try { fs.unlinkSync(path.join(inboxDir, file)); } catch {}
+          try { fs.unlinkSync(path.join(inboxDir, file)); } catch (err: any) { if (err?.code !== 'ENOENT') throw err; }
         }
         lines.push(`Cleared ${files.length} message${files.length === 1 ? '' : 's'}.`);
       }
@@ -547,9 +632,17 @@ export async function handleMetaCommand(
         // Close existing pages, then restore (replace, not merge)
         bm.setFrame(null);
         await bm.closeAllPages();
+        // Allowlist disk-loaded page fields — NEVER accept loadedHtml, loadedHtmlWaitUntil,
+        // or owner from disk. Those are in-memory-only invariants; allowing them would let
+        // a tampered state file smuggle HTML past load-html's safe-dirs + magic-byte + size
+        // checks, or forge tab ownership for cross-agent authorization bypass.
         await bm.restoreState({
           cookies: validatedCookies,
-          pages: data.pages.map((p: any) => ({ ...p, storage: null })),
+          pages: data.pages.map((p: any) => ({
+            url: typeof p.url === 'string' ? p.url : '',
+            isActive: Boolean(p.isActive),
+            storage: null,
+          })),
         });
         return `State loaded: ${data.cookies.length} cookies, ${data.pages.length} pages`;
       }
@@ -590,6 +683,116 @@ export async function handleMetaCommand(
       bm.setFrame(frame);
       bm.clearRefs();
       return `Switched to frame: ${frame.url()}`;
+    }
+
+    // ─── UX Audit ─────────────────────────────────────
+    case 'ux-audit': {
+      const page = bm.getPage();
+
+      // Extract page structure for UX behavioral analysis
+      // Agent interprets the data and applies Krug's 6 usability tests
+      // Uses textContent (not innerText) to avoid layout computation on large DOMs
+      const data = await page.evaluate(() => {
+        const HEADING_CAP = 50;
+        const INTERACTIVE_CAP = 200;
+        const TEXT_BLOCK_CAP = 50;
+
+        // Site ID: logo or brand element
+        const logoEl = document.querySelector('[class*="logo"], [id*="logo"], header img, [aria-label*="home"], a[href="/"]');
+        const siteId = logoEl ? {
+          found: true,
+          text: (logoEl.textContent || '').trim().slice(0, 100),
+          tag: logoEl.tagName,
+          alt: (logoEl as HTMLImageElement).alt || null,
+        } : { found: false, text: null, tag: null, alt: null };
+
+        // Page name: main heading
+        const h1 = document.querySelector('h1');
+        const pageName = h1 ? {
+          found: true,
+          text: h1.textContent?.trim().slice(0, 200) || '',
+        } : { found: false, text: null };
+
+        // Navigation: primary nav elements
+        const navEls = document.querySelectorAll('nav, [role="navigation"]');
+        const navItems: Array<{ text: string; links: number }> = [];
+        navEls.forEach((nav, i) => {
+          if (i >= 5) return;
+          const links = nav.querySelectorAll('a');
+          navItems.push({
+            text: (nav.getAttribute('aria-label') || `nav-${i}`).slice(0, 50),
+            links: links.length,
+          });
+        });
+
+        // "You are here" indicator: current/active nav items
+        // Scoped to nav containers to avoid false positives from animation classes
+        const activeNavItems = document.querySelectorAll('nav [aria-current], nav .active, nav .current, [role="navigation"] [aria-current], [role="navigation"] .active, [role="navigation"] .current');
+        const youAreHere = Array.from(activeNavItems).slice(0, 5).map(el => ({
+          text: (el.textContent || '').trim().slice(0, 50),
+          tag: el.tagName,
+        }));
+
+        // Search: search box presence
+        const searchEl = document.querySelector('input[type="search"], [role="search"], input[name*="search"], input[placeholder*="search" i], input[aria-label*="search" i]');
+        const search = { found: !!searchEl };
+
+        // Breadcrumbs
+        const breadcrumbEl = document.querySelector('[aria-label*="breadcrumb" i], .breadcrumb, .breadcrumbs, [class*="breadcrumb"]');
+        const breadcrumbs = breadcrumbEl ? {
+          found: true,
+          items: Array.from(breadcrumbEl.querySelectorAll('a, span, li')).slice(0, 10).map(el => (el.textContent || '').trim().slice(0, 30)),
+        } : { found: false, items: [] };
+
+        // Headings: heading hierarchy
+        const headings = Array.from(document.querySelectorAll('h1,h2,h3,h4,h5,h6')).slice(0, HEADING_CAP).map(h => ({
+          tag: h.tagName,
+          text: (h.textContent || '').trim().slice(0, 80),
+          size: getComputedStyle(h).fontSize,
+        }));
+
+        // Interactive elements: buttons, links, inputs
+        const interactiveEls = Array.from(document.querySelectorAll('a, button, input, select, textarea, [role="button"], [tabindex]')).slice(0, INTERACTIVE_CAP);
+        const interactive = interactiveEls.map(el => {
+          const rect = el.getBoundingClientRect();
+          return {
+            tag: el.tagName,
+            text: (el.textContent || (el as HTMLInputElement).placeholder || '').trim().slice(0, 50),
+            type: (el as HTMLInputElement).type || null,
+            role: el.getAttribute('role'),
+            w: Math.round(rect.width),
+            h: Math.round(rect.height),
+            visible: rect.width > 0 && rect.height > 0,
+          };
+        }).filter(el => el.visible);
+
+        // Text blocks: paragraphs and large text areas
+        const textBlocks = Array.from(document.querySelectorAll('p, [class*="description"], [class*="intro"], [class*="welcome"], [class*="hero"] p, main p')).slice(0, TEXT_BLOCK_CAP).map(el => ({
+          text: (el.textContent || '').trim().slice(0, 200),
+          wordCount: (el.textContent || '').trim().split(/\s+/).filter(Boolean).length,
+        }));
+
+        // Total visible text word count (textContent avoids layout computation)
+        const bodyText = (document.body?.textContent || '').trim();
+        const totalWords = bodyText.split(/\s+/).filter(Boolean).length;
+
+        return {
+          url: window.location.href,
+          title: document.title,
+          siteId,
+          pageName,
+          navigation: navItems,
+          youAreHere,
+          search,
+          breadcrumbs,
+          headings,
+          interactive,
+          textBlocks,
+          totalWords,
+        };
+      });
+
+      return JSON.stringify(data, null, 2);
     }
 
     default:

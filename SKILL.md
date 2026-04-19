@@ -11,6 +11,11 @@ allowed-tools:
   - Bash
   - Read
   - AskUserQuestion
+triggers:
+  - browse this page
+  - take a screenshot
+  - navigate to url
+  - inspect the page
 
 ---
 <!-- AUTO-GENERATED from SKILL.md.tmpl — do not edit directly -->
@@ -44,6 +49,16 @@ _TEL_START=$(date +%s)
 _SESSION_ID="$$-$(date +%s)"
 echo "TELEMETRY: ${_TEL:-off}"
 echo "TEL_PROMPTED: $_TEL_PROMPTED"
+# Question tuning (opt-in; see /plan-tune + docs/designs/PLAN_TUNING_V0.md)
+_QUESTION_TUNING=$(~/.claude/skills/jstack/bin/jstack-config get question_tuning 2>/dev/null || echo "false")
+echo "QUESTION_TUNING: $_QUESTION_TUNING"
+# Writing style (V1: default = ELI10-style, terse = V0 prose. See docs/designs/PLAN_TUNING_V1.md)
+_EXPLAIN_LEVEL=$(~/.claude/skills/jstack/bin/jstack-config get explain_level 2>/dev/null || echo "default")
+if [ "$_EXPLAIN_LEVEL" != "default" ] && [ "$_EXPLAIN_LEVEL" != "terse" ]; then _EXPLAIN_LEVEL="default"; fi
+echo "EXPLAIN_LEVEL: $_EXPLAIN_LEVEL"
+# V1 upgrade migration pending-prompt flag
+_WRITING_STYLE_PENDING=$([ -f ~/.jstack/.writing-style-prompt-pending ] && echo "yes" || echo "no")
+echo "WRITING_STYLE_PENDING: $_WRITING_STYLE_PENDING"
 mkdir -p ~/.jstack/analytics
 if [ "$_TEL" != "off" ]; then
 echo '{"skill":"jstack","ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","repo":"'$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo "unknown")'"}'  >> ~/.jstack/analytics/skill-usage.jsonl 2>/dev/null || true
@@ -60,7 +75,7 @@ for _PF in $(find ~/.jstack/analytics -maxdepth 1 -name '.pending-*' 2>/dev/null
 done
 # Learnings count
 eval "$(~/.claude/skills/jstack/bin/jstack-slug 2>/dev/null)" 2>/dev/null || true
-_LEARN_FILE="${GSTACK_HOME:-$HOME/.jstack}/projects/${SLUG:-unknown}/learnings.jsonl"
+_LEARN_FILE="${JSTACK_HOME:-$HOME/.jstack}/projects/${SLUG:-unknown}/learnings.jsonl"
 if [ -f "$_LEARN_FILE" ]; then
   _LEARN_COUNT=$(wc -l < "$_LEARN_FILE" 2>/dev/null | tr -d ' ')
   echo "LEARNINGS: $_LEARN_COUNT entries loaded"
@@ -104,6 +119,29 @@ of `/qa`, `/jstack-ship` instead of `/ship`). Disk paths are unaffected — alwa
 `~/.claude/skills/jstack/[skill-name]/SKILL.md` for reading skill files.
 
 If output shows `UPGRADE_AVAILABLE <old> <new>`: read `~/.claude/skills/jstack/jstack-upgrade/SKILL.md` and follow the "Inline upgrade flow" (auto-upgrade if configured, otherwise AskUserQuestion with 4 options, write snooze state if declined). If `JUST_UPGRADED <from> <to>`: tell user "Running jstack v{to} (just updated!)" and continue.
+
+If `WRITING_STYLE_PENDING` is `yes`: You're on the first skill run after upgrading
+to jstack v1. Ask the user once about the new default writing style. Use AskUserQuestion:
+
+> v1 prompts = simpler. Technical terms get a one-sentence gloss on first use,
+> questions are framed in outcome terms, sentences are shorter.
+>
+> Keep the new default, or prefer the older tighter prose?
+
+Options:
+- A) Keep the new default (recommended — good writing helps everyone)
+- B) Restore V0 prose — set `explain_level: terse`
+
+If A: leave `explain_level` unset (defaults to `default`).
+If B: run `~/.claude/skills/jstack/bin/jstack-config set explain_level terse`.
+
+Always run (regardless of choice):
+```bash
+rm -f ~/.jstack/.writing-style-prompt-pending
+touch ~/.jstack/.writing-style-prompted
+```
+
+This only happens once. If `WRITING_STYLE_PENDING` is `no`, skip this entirely.
 
 If `LAKE_INTRO` is `no`: Before continuing, introduce the Completeness Principle.
 Tell the user: "jstack follows the **Boil the Lake** principle — always do the complete
@@ -205,7 +243,8 @@ Key routing rules:
 - Design system, brand → invoke design-consultation
 - Visual audit, design polish → invoke design-review
 - Architecture review → invoke plan-eng-review
-- Save progress, checkpoint, resume → invoke checkpoint
+- Save progress, save state, save my work → invoke context-save
+- Resume, where was I, pick up where I left off → invoke context-restore
 - Code quality, health check → invoke health
 ```
 
@@ -254,6 +293,8 @@ AI orchestrator (e.g., OpenClaw). In spawned sessions:
 - Do NOT run upgrade checks, telemetry prompts, routing injection, or lake intro.
 - Focus on completing the task and reporting results via prose output.
 - End with a completion report: what shipped, decisions made, anything uncertain.
+
+
 
 ## Voice
 
@@ -387,7 +428,7 @@ cancel the skill or leave plan mode.
 
 When you are in plan mode and about to call ExitPlanMode:
 
-1. Check if the plan file already has a `## GSTACK REVIEW REPORT` section.
+1. Check if the plan file already has a `## JSTACK REVIEW REPORT` section.
 2. If it DOES — skip (a review skill already wrote a richer report).
 3. If it does NOT — run this command:
 
@@ -395,7 +436,7 @@ When you are in plan mode and about to call ExitPlanMode:
 ~/.claude/skills/jstack/bin/jstack-review-read
 \`\`\`
 
-Then write a `## GSTACK REVIEW REPORT` section to the end of the plan file:
+Then write a `## JSTACK REVIEW REPORT` section to the end of the plan file:
 
 - If the output contains review entries (JSONL lines before `---CONFIG---`): format the
   standard report table with runs/status/findings per skill, same format as the review
@@ -403,7 +444,7 @@ Then write a `## GSTACK REVIEW REPORT` section to the end of the plan file:
 - If the output is `NO_REVIEWS` or empty: write this placeholder table:
 
 \`\`\`markdown
-## GSTACK REVIEW REPORT
+## JSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |
 |--------|---------|-----|------|--------|----------|
@@ -466,7 +507,7 @@ Auto-shuts down after 30 min idle. State persists between calls (cookies, tabs, 
 _ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
 B=""
 [ -n "$_ROOT" ] && [ -x "$_ROOT/.claude/skills/jstack/browse/dist/browse" ] && B="$_ROOT/.claude/skills/jstack/browse/dist/browse"
-[ -z "$B" ] && B=~/.claude/skills/jstack/browse/dist/browse
+[ -z "$B" ] && B="$HOME/.claude/skills/jstack/browse/dist/browse"
 if [ -x "$B" ]; then
   echo "READY: $B"
 else
@@ -706,6 +747,9 @@ $B css ".button" "background-color"
 ## Snapshot System
 
 The snapshot is your primary tool for understanding and interacting with pages.
+`$B` is the browse binary (resolved from `$_ROOT/.claude/skills/jstack/browse/dist/browse` or `~/.claude/skills/jstack/browse/dist/browse`).
+
+**Syntax:** `$B snapshot [flags]`
 
 ```
 -i        --interactive           Interactive elements only (buttons, links, inputs) with @e refs. Also auto-enables cursor-interactive scan (-C) to capture dropdowns and popovers.
@@ -716,10 +760,17 @@ The snapshot is your primary tool for understanding and interacting with pages.
 -a        --annotate              Annotated screenshot with red overlay boxes and ref labels
 -o <path> --output                Output path for annotated screenshot (default: <temp>/browse-annotated.png)
 -C        --cursor-interactive    Cursor-interactive elements (@c refs — divs with pointer, onclick). Auto-enabled when -i is used.
+-H <json> --heatmap               Color-coded overlay screenshot from JSON map: '{"@e1":"green","@e3":"red"}'. Valid colors: green, yellow, red, blue, orange, gray.
 ```
 
 All flags can be combined freely. `-o` only applies when `-a` is also used.
 Example: `$B snapshot -i -a -C -o /tmp/annotated.png`
+
+**Flag details:**
+- `-d <N>`: depth 0 = root element only, 1 = root + direct children, etc. Default: unlimited. Works with all other flags including `-i`.
+- `-s <sel>`: any valid CSS selector (`#main`, `.content`, `nav > ul`, `[data-testid="hero"]`). Scopes the tree to that subtree.
+- `-D`: outputs a unified diff (lines prefixed with `+`/`-`/` `) comparing the current snapshot against the previous one. First call stores the baseline and returns the full tree. Baseline persists across navigations until the next `-D` call resets it.
+- `-a`: saves an annotated screenshot (PNG) with red overlay boxes and @ref labels drawn on each interactive element. The screenshot is a separate output from the text tree — both are produced when `-a` is used.
 
 **Ref numbering:** @e refs are assigned sequentially (@e1, @e2, ...) in tree order.
 @c refs from `-C` are numbered separately (@c1, @c2, ...).
@@ -747,7 +798,8 @@ Refs are invalidated on navigation — run `snapshot` again after `goto`.
 |---------|-------------|
 | `back` | History back |
 | `forward` | History forward |
-| `goto <url>` | Navigate to URL |
+| `goto <url>` | Navigate to URL (http://, https://, or file:// scoped to cwd/TEMP_DIR) |
+| `load-html <file> [--wait-until load|domcontentloaded|networkidle]` | Load a local HTML file via setContent (no HTTP server needed). For self-contained HTML (inline CSS/JS, data URIs). For HTML on disk, goto file://... is often cleaner. |
 | `reload` | Reload page |
 | `url` | Print current URL |
 
@@ -764,10 +816,19 @@ Refs are invalidated on navigation — run `snapshot` again after `goto`.
 | Command | Description |
 |---------|-------------|
 | `accessibility` | Full ARIA tree |
+| `data [--jsonld|--og|--meta|--twitter]` | Structured data: JSON-LD, Open Graph, Twitter Cards, meta tags |
 | `forms` | Form fields as JSON |
 | `html [selector]` | innerHTML of selector (throws if not found), or full page HTML if no selector given |
 | `links` | All links as "text → href" |
+| `media [--images|--videos|--audio] [selector]` | All media elements (images, videos, audio) with URLs, dimensions, types |
 | `text` | Cleaned page text |
+
+### Extraction
+| Command | Description |
+|---------|-------------|
+| `archive [path]` | Save complete page as MHTML via CDP |
+| `download <url|@ref> [path] [--base64]` | Download URL or media element to disk using browser cookies |
+| `scrape <images|videos|media> [--selector sel] [--dir path] [--limit N]` | Bulk download all media from page. Writes manifest.json |
 
 ### Interaction
 | Command | Description |
@@ -789,7 +850,7 @@ Refs are invalidated on navigation — run `snapshot` again after `goto`.
 | `type <text>` | Type into focused element |
 | `upload <sel> <file> [file2...]` | Upload file(s) |
 | `useragent <string>` | Set user agent |
-| `viewport <WxH>` | Set viewport size |
+| `viewport [<WxH>] [--scale <n>]` | Set viewport size and optional deviceScaleFactor (1-3, for retina screenshots). --scale requires a context rebuild. |
 | `wait <sel|--networkidle|--load>` | Wait for element, network idle, or page load (timeout: 15s) |
 
 ### Inspection
@@ -807,6 +868,7 @@ Refs are invalidated on navigation — run `snapshot` again after `goto`.
 | `network [--clear]` | Network requests |
 | `perf` | Page load timings |
 | `storage [set k v]` | Read all localStorage + sessionStorage as JSON, or set <key> <value> to write localStorage |
+| `ux-audit` | Extract page structure for UX behavioral analysis — site ID, nav, headings, text blocks, interactive elements. Returns JSON for agent interpretation. |
 
 ### Visual
 | Command | Description |
@@ -815,7 +877,7 @@ Refs are invalidated on navigation — run `snapshot` again after `goto`.
 | `pdf [path]` | Save as PDF |
 | `prettyscreenshot [--scroll-to sel|text] [--cleanup] [--hide sel...] [--width px] [path]` | Clean screenshot with optional cleanup, scroll positioning, and element hiding |
 | `responsive [prefix]` | Screenshots at mobile (375x812), tablet (768x1024), desktop (1280x720). Saves as {prefix}-mobile.png etc. |
-| `screenshot [--viewport] [--clip x,y,w,h] [selector|@ref] [path]` | Save screenshot (supports element crop via CSS/@ref, --clip region, --viewport) |
+| `screenshot [--selector <css>] [--viewport] [--clip x,y,w,h] [--base64] [selector|@ref] [path]` | Save screenshot. --selector targets a specific element (explicit flag form). Positional selectors starting with ./#/@/[ still work. |
 
 ### Snapshot
 | Command | Description |

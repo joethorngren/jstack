@@ -9,6 +9,10 @@ description: |
   Use when: "performance", "benchmark", "page speed", "lighthouse", "web vitals",
   "bundle size", "load time". (jstack)
   Voice triggers (speech-to-text aliases): "speed test", "check performance".
+triggers:
+  - performance benchmark
+  - check page speed
+  - detect performance regression
 allowed-tools:
   - Bash
   - Read
@@ -47,6 +51,16 @@ _TEL_START=$(date +%s)
 _SESSION_ID="$$-$(date +%s)"
 echo "TELEMETRY: ${_TEL:-off}"
 echo "TEL_PROMPTED: $_TEL_PROMPTED"
+# Question tuning (opt-in; see /plan-tune + docs/designs/PLAN_TUNING_V0.md)
+_QUESTION_TUNING=$(~/.claude/skills/jstack/bin/jstack-config get question_tuning 2>/dev/null || echo "false")
+echo "QUESTION_TUNING: $_QUESTION_TUNING"
+# Writing style (V1: default = ELI10-style, terse = V0 prose. See docs/designs/PLAN_TUNING_V1.md)
+_EXPLAIN_LEVEL=$(~/.claude/skills/jstack/bin/jstack-config get explain_level 2>/dev/null || echo "default")
+if [ "$_EXPLAIN_LEVEL" != "default" ] && [ "$_EXPLAIN_LEVEL" != "terse" ]; then _EXPLAIN_LEVEL="default"; fi
+echo "EXPLAIN_LEVEL: $_EXPLAIN_LEVEL"
+# V1 upgrade migration pending-prompt flag
+_WRITING_STYLE_PENDING=$([ -f ~/.jstack/.writing-style-prompt-pending ] && echo "yes" || echo "no")
+echo "WRITING_STYLE_PENDING: $_WRITING_STYLE_PENDING"
 mkdir -p ~/.jstack/analytics
 if [ "$_TEL" != "off" ]; then
 echo '{"skill":"benchmark","ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","repo":"'$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo "unknown")'"}'  >> ~/.jstack/analytics/skill-usage.jsonl 2>/dev/null || true
@@ -63,7 +77,7 @@ for _PF in $(find ~/.jstack/analytics -maxdepth 1 -name '.pending-*' 2>/dev/null
 done
 # Learnings count
 eval "$(~/.claude/skills/jstack/bin/jstack-slug 2>/dev/null)" 2>/dev/null || true
-_LEARN_FILE="${GSTACK_HOME:-$HOME/.jstack}/projects/${SLUG:-unknown}/learnings.jsonl"
+_LEARN_FILE="${JSTACK_HOME:-$HOME/.jstack}/projects/${SLUG:-unknown}/learnings.jsonl"
 if [ -f "$_LEARN_FILE" ]; then
   _LEARN_COUNT=$(wc -l < "$_LEARN_FILE" 2>/dev/null | tr -d ' ')
   echo "LEARNINGS: $_LEARN_COUNT entries loaded"
@@ -107,6 +121,29 @@ of `/qa`, `/jstack-ship` instead of `/ship`). Disk paths are unaffected — alwa
 `~/.claude/skills/jstack/[skill-name]/SKILL.md` for reading skill files.
 
 If output shows `UPGRADE_AVAILABLE <old> <new>`: read `~/.claude/skills/jstack/jstack-upgrade/SKILL.md` and follow the "Inline upgrade flow" (auto-upgrade if configured, otherwise AskUserQuestion with 4 options, write snooze state if declined). If `JUST_UPGRADED <from> <to>`: tell user "Running jstack v{to} (just updated!)" and continue.
+
+If `WRITING_STYLE_PENDING` is `yes`: You're on the first skill run after upgrading
+to jstack v1. Ask the user once about the new default writing style. Use AskUserQuestion:
+
+> v1 prompts = simpler. Technical terms get a one-sentence gloss on first use,
+> questions are framed in outcome terms, sentences are shorter.
+>
+> Keep the new default, or prefer the older tighter prose?
+
+Options:
+- A) Keep the new default (recommended — good writing helps everyone)
+- B) Restore V0 prose — set `explain_level: terse`
+
+If A: leave `explain_level` unset (defaults to `default`).
+If B: run `~/.claude/skills/jstack/bin/jstack-config set explain_level terse`.
+
+Always run (regardless of choice):
+```bash
+rm -f ~/.jstack/.writing-style-prompt-pending
+touch ~/.jstack/.writing-style-prompted
+```
+
+This only happens once. If `WRITING_STYLE_PENDING` is `no`, skip this entirely.
 
 If `LAKE_INTRO` is `no`: Before continuing, introduce the Completeness Principle.
 Tell the user: "jstack follows the **Boil the Lake** principle — always do the complete
@@ -208,7 +245,8 @@ Key routing rules:
 - Design system, brand → invoke design-consultation
 - Visual audit, design polish → invoke design-review
 - Architecture review → invoke plan-eng-review
-- Save progress, checkpoint, resume → invoke checkpoint
+- Save progress, save state, save my work → invoke context-save
+- Resume, where was I, pick up where I left off → invoke context-restore
 - Code quality, health check → invoke health
 ```
 
@@ -257,6 +295,8 @@ AI orchestrator (e.g., OpenClaw). In spawned sessions:
 - Do NOT run upgrade checks, telemetry prompts, routing injection, or lake intro.
 - Focus on completing the task and reporting results via prose output.
 - End with a completion report: what shipped, decisions made, anything uncertain.
+
+
 
 ## Voice
 
@@ -390,7 +430,7 @@ cancel the skill or leave plan mode.
 
 When you are in plan mode and about to call ExitPlanMode:
 
-1. Check if the plan file already has a `## GSTACK REVIEW REPORT` section.
+1. Check if the plan file already has a `## JSTACK REVIEW REPORT` section.
 2. If it DOES — skip (a review skill already wrote a richer report).
 3. If it does NOT — run this command:
 
@@ -398,7 +438,7 @@ When you are in plan mode and about to call ExitPlanMode:
 ~/.claude/skills/jstack/bin/jstack-review-read
 \`\`\`
 
-Then write a `## GSTACK REVIEW REPORT` section to the end of the plan file:
+Then write a `## JSTACK REVIEW REPORT` section to the end of the plan file:
 
 - If the output contains review entries (JSONL lines before `---CONFIG---`): format the
   standard report table with runs/status/findings per skill, same format as the review
@@ -406,7 +446,7 @@ Then write a `## GSTACK REVIEW REPORT` section to the end of the plan file:
 - If the output is `NO_REVIEWS` or empty: write this placeholder table:
 
 \`\`\`markdown
-## GSTACK REVIEW REPORT
+## JSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |
 |--------|---------|-----|------|--------|----------|
@@ -429,7 +469,7 @@ plan's living status.
 _ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
 B=""
 [ -n "$_ROOT" ] && [ -x "$_ROOT/.claude/skills/jstack/browse/dist/browse" ] && B="$_ROOT/.claude/skills/jstack/browse/dist/browse"
-[ -z "$B" ] && B=~/.claude/skills/jstack/browse/dist/browse
+[ -z "$B" ] && B="$HOME/.claude/skills/jstack/browse/dist/browse"
 if [ -x "$B" ]; then
   echo "READY: $B"
 else
